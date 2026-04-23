@@ -55,6 +55,14 @@
             border: 1px solid #fff; border-radius: 2px;
             text-align: center; font-family: inherit;
         }
+        
+        /* ルール設定 */
+        .rule-setting {
+            display: flex; align-items: center; gap: 5px;
+            font-size: 13px; margin: 5px 0;
+        }
+        .rule-setting input { cursor: pointer; margin: 0; }
+        .rule-setting label { cursor: pointer; color: #ddd; }
 
         /* プレイ中のUI */
         #play-ui {
@@ -92,7 +100,6 @@
         .player-info.selectable { border: 1px dashed #fff; animation: border-blink 1s infinite; }
         .player-info.selected { border: 2px solid #ff3333; }
         
-        /* UIの四角い色タイル */
         .ui-tile { width: 14px; height: 14px; margin-right: 6px; border: 1px solid #fff; display: inline-block; }
         .bg-color-0 { background-color: #ff3333; }
         .bg-color-1 { background-color: #3333ff; }
@@ -143,7 +150,6 @@
             grid-template-columns: repeat(auto-fit, minmax(75px, 1fr));
             grid-auto-rows: 120px; 
             gap: 8px;
-            /* 案2の対応：一番下に物理的なスクロール用の余白(クッション)を確保 */
             padding-bottom: 80px; 
         }
 
@@ -186,7 +192,6 @@
         #dice:hover:not(.disabled) { background-color: #222; }
         #dice.disabled { border-color: #555 !important; cursor: not-allowed; box-shadow: none !important; opacity: 0.8; animation: none !important; }
 
-        /* サイコロのゆっくりとした点滅 */
         .dice-ready {
             animation: dice-pulse 2s infinite alternate;
         }
@@ -216,13 +221,11 @@
             z-index: 10;
         }
         
-        /* 選択可能時のシルエット発光（破線枠の代わり） */
         .piece.selectable {
             outline: none;
             animation: silhouette-glow 1s infinite;
             z-index: 20;
         }
-        /* 選択中のシルエット発光（赤） */
         .piece.selected {
             outline: none;
             filter: drop-shadow(0 0 4px #ff3333) drop-shadow(0 0 4px #ff3333);
@@ -235,18 +238,12 @@
         .piece-color-3 { background-position-y: -96px !important; }
         .piece.ghost { background-position-y: -128px !important; }
 
-        /* JavaScriptによる完全同期フレーム */
         .piece.frame-1 { background-position-x: 0px; }
         .piece.frame-2 { background-position-x: -32px; }
         
-        /* シルエットに沿った発光アニメーション */
         @keyframes silhouette-glow {
-            0%, 100% {
-                filter: drop-shadow(0 0 4px #fff) drop-shadow(0 0 4px #fff);
-            }
-            50% {
-                filter: drop-shadow(0 0 1px rgba(255,255,255,0.4));
-            }
+            0%, 100% { filter: drop-shadow(0 0 4px #fff) drop-shadow(0 0 4px #fff); }
+            50% { filter: drop-shadow(0 0 1px rgba(255,255,255,0.4)); }
         }
 
         @keyframes border-blink {
@@ -319,6 +316,11 @@
                 <div class="p-input"><span class="ui-tile bg-color-1"></span><input type="text" id="p2-input" value="BB" maxlength="2"></div>
                 <div class="p-input"><span class="ui-tile bg-color-2"></span><input type="text" id="p3-input" value="" maxlength="2"></div>
                 <div class="p-input"><span class="ui-tile bg-color-3"></span><input type="text" id="p4-input" value="" maxlength="2"></div>
+            </div>
+            <div class="rule-setting">
+                <label><input type="checkbox" id="color-swap-rule" checked> 「色の入れ替え」ルールあり</label>
+            </div>
+            <div>
                 <button class="btn" onclick="startGameFromInput()">Start</button>
             </div>
         </div>
@@ -357,7 +359,8 @@
         const TOTAL_CELLS = 23; 
         const GOAL_POS = TOTAL_CELLS - 1;
         const ANIMATION_TIME = 800; 
-        const SAVE_KEY = 'ghostStairs_localSave_v3'; 
+        // セーブデータの仕様が変わったためキーを変更
+        const SAVE_KEY = 'ghostStairs_localSave_v4'; 
         
         let players = [];
         let pieces = [];
@@ -366,6 +369,7 @@
         let swapMode = null; 
         let selectedTargets = [];
         let isGameOver = false;
+        let isColorSwapEnabled = true;
 
         // 全コマのアニメーションフレームを完全に同期させる（300msごとに切り替え）
         setInterval(() => {
@@ -426,7 +430,7 @@
         // --- セーブ関連 ---
         function saveState() {
             if (isGameOver) return; 
-            const state = { players, pieces, turnIndex };
+            const state = { players, pieces, turnIndex, isColorSwapEnabled };
             localStorage.setItem(SAVE_KEY, JSON.stringify(state));
         }
 
@@ -438,6 +442,7 @@
                 players = state.players;
                 pieces = state.pieces;
                 turnIndex = state.turnIndex;
+                isColorSwapEnabled = state.isColorSwapEnabled !== undefined ? state.isColorSwapEnabled : true;
                 return true;
             } catch (e) {
                 return false;
@@ -470,10 +475,14 @@
                 pieces.push({ id: index, pos: 0, isGhost: !isHuman, currentSlot: -1 });
             });
 
-            if(humanCount === 0) {
-                alert("少なくとも1人は名前を入力してください。");
+            // 1人から「2人」に変更
+            if(humanCount < 2) {
+                alert("少なくとも2人は名前を入力してください。");
                 return;
             }
+
+            // ルール設定の取得
+            isColorSwapEnabled = document.getElementById('color-swap-rule').checked;
 
             const humanIndices = players.filter(p => p.isHuman).map(p => p.id);
             turnIndex = humanIndices[Math.floor(Math.random() * humanIndices.length)];
@@ -750,7 +759,7 @@
         function handleGhostRoll() {
             const unghosted = pieces.filter(p => !p.isGhost);
             if (unghosted.length > 0) {
-                updateMessage(`【ゴーストの目】ゴーストでないコマを選択してください。`);
+                updateMessage(`【ゴーストの出目】ゴーストでないコマを選択してください。`);
                 document.querySelectorAll('.piece:not(.ghost)').forEach(el => {
                     el.classList.add('selectable');
                     el.onclick = () => {
@@ -768,8 +777,14 @@
                     };
                 });
             } else {
-                updateMessage(`【ゴーストの出目】入れ替えを選択してください。`);
-                document.getElementById('action-buttons').style.display = 'flex';
+                // ルール設定に応じて分岐
+                if (isColorSwapEnabled) {
+                    updateMessage(`【ゴーストの出目】入れ替えを選択してください。`);
+                    document.getElementById('action-buttons').style.display = 'flex';
+                } else {
+                    // 色入れ替えなしの場合は直接「コマ入替」に移行
+                    startSwap('piece');
+                }
             }
         }
 
