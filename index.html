@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ghost Stairs</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            color: #fff;
+            font-family: 'Courier New', Courier, monospace;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden; 
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+        }
+
+        /* --- 上部UIエリア --- */
+        #ui-area {
+            flex: 0 0 auto;
+            background: #111;
+            padding: 10px;
+            border-bottom: 1px solid #333;
+            box-sizing: border-box;
+            z-index: 100;
+        }
+
+        /* セットアップ画面 */
+        #setup-area {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            justify-content: center;
+        }
+        .hint { font-size: 12px; color: #aaa; }
+        .setup-inputs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        .p-input {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+        }
+        .p-input input {
+            width: 30px;
+            background: #000; color: #fff;
+            border: 1px solid #fff; border-radius: 2px;
+            text-align: center; font-family: inherit;
+        }
+
+        /* プレイ中のUI */
+        #play-ui {
+            display: none;
+            flex-wrap: wrap; 
+            gap: 10px;
+            align-items: center;
+            position: relative;
+        }
+        
+        #message {
+            flex: 1 1 150px; 
+            font-size: 13px;
+            color: #ffeb3b;
+            min-height: 40px;
+            display: flex; align-items: center;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 5px 10px; border-radius: 4px;
+            line-height: 1.4;
+        }
+
+        #player-status {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            flex: 0 0 auto;
+        }
+        .player-info {
+            display: flex; align-items: center;
+            padding: 4px 8px; border: 1px solid #333; border-radius: 4px;
+            font-size: 14px; font-weight: bold; background: #1a1a1a;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .player-info.active-turn { border-color: #fff; background: #333; }
+        .player-info.selectable { border: 1px dashed #fff; animation: border-blink 1s infinite; }
+        .player-info.selected { border: 2px solid #ff3333; }
+        
+        /* UIの四角い色タイル */
+        .ui-tile { width: 14px; height: 14px; margin-right: 6px; border: 1px solid #fff; display: inline-block; }
+        .bg-color-0 { background-color: #ff3333; }
+        .bg-color-1 { background-color: #3333ff; }
+        .bg-color-2 { background-color: #33cc33; }
+        .bg-color-3 { background-color: #ffff33; }
+
+        #action-buttons { display: none; gap: 5px; }
+        .btn {
+            background: #000; color: #fff; border: 1px solid #fff;
+            padding: 8px 12px; cursor: pointer; font-family: inherit;
+            border-radius: 4px; font-weight: bold; font-size: 12px;
+            white-space: nowrap;
+        }
+        .btn:hover { background: #333; }
+
+        /* --- 画面右下の小さなリセットボタン --- */
+        #small-reset-btn {
+            display: none;
+            position: fixed;
+            bottom: 10px; right: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            color: #555; border: 1px solid #444;
+            padding: 4px 8px; font-size: 10px;
+            cursor: pointer; z-index: 100; border-radius: 3px;
+            font-family: inherit;
+        }
+        #small-reset-btn:hover {
+            color: #ff5555; border-color: #ff5555; background: rgba(85, 0, 0, 0.8);
+        }
+
+        /* --- 下部ボードエリア --- */
+        #board-container {
+            flex: 1 1 auto;
+            background: #0a0a0a;
+            padding: 10px;
+            overflow-y: auto; 
+            overflow-x: hidden;
+            box-sizing: border-box;
+            position: relative; 
+        }
+
+        #board {
+            position: relative;
+            width: 100%;
+            max-width: 1000px; 
+            margin: 0 auto; 
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(75px, 1fr));
+            grid-auto-rows: 120px; 
+            gap: 8px;
+            /* 案2の対応：一番下に物理的なスクロール用の余白(クッション)を確保 */
+            padding-bottom: 80px; 
+        }
+
+        .cell {
+            border: 1px solid #444;
+            background-color: #151515;
+            border-radius: 4px;
+            box-sizing: border-box;
+            display: flex;
+            justify-content: center;
+            font-size: 12px;
+            color: #777;
+            padding-top: 4px;
+        }
+
+        /* =========================================
+           スプライト画像（ドット絵）の適用とアニメーション
+           ========================================= */
+
+        .pixel-art {
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+            image-rendering: pixelated;
+        }
+
+        /* --- サイコロ --- */
+        #dice {
+            flex: 0 0 48px;
+            height: 48px;
+            border: 2px solid #fff; border-radius: 8px;
+            cursor: pointer; background-color: #111;
+            box-shadow: 0 2px 4px rgba(255,255,255,0.1);
+            
+            background-image: url('dice_sheet.png');
+            background-repeat: no-repeat;
+            background-size: 240px 48px; 
+            transition: border-color 0.5s, box-shadow 0.5s;
+        }
+        #dice:hover:not(.disabled) { background-color: #222; }
+        #dice.disabled { border-color: #555 !important; cursor: not-allowed; box-shadow: none !important; opacity: 0.8; animation: none !important; }
+
+        /* サイコロのゆっくりとした点滅 */
+        .dice-ready {
+            animation: dice-pulse 2s infinite alternate;
+        }
+        @keyframes dice-pulse {
+            0% { border-color: #fff; box-shadow: 0 0 5px rgba(255, 255, 255, 0.2); }
+            100% { border-color: #ffd700; box-shadow: 0 0 20px rgba(255, 215, 0, 0.8); }
+        }
+
+        .dice-face-1 { background-position: 0px 0px; }
+        .dice-face-2 { background-position: -48px 0px; }
+        .dice-face-3 { background-position: -96px 0px; }
+        .dice-face-4 { background-position: -144px 0px; }
+        .dice-face-g { background-position: -192px 0px; }
+
+        /* --- コマ --- */
+        .piece {
+            position: absolute;
+            width: 32px;  
+            height: 32px; 
+            background-image: url('pieces_sheet.png');
+            background-repeat: no-repeat;
+            background-size: 64px 160px; 
+            
+            transition: left 0.8s ease-in-out, top 0.8s ease-in-out;
+            cursor: pointer;
+            box-sizing: border-box;
+            z-index: 10;
+        }
+        
+        /* 選択可能時のシルエット発光（破線枠の代わり） */
+        .piece.selectable {
+            outline: none;
+            animation: silhouette-glow 1s infinite;
+            z-index: 20;
+        }
+        /* 選択中のシルエット発光（赤） */
+        .piece.selected {
+            outline: none;
+            filter: drop-shadow(0 0 4px #ff3333) drop-shadow(0 0 4px #ff3333);
+            z-index: 25;
+        }
+
+        .piece-color-0 { background-position-y: 0px !important; }
+        .piece-color-1 { background-position-y: -32px !important; }
+        .piece-color-2 { background-position-y: -64px !important; }
+        .piece-color-3 { background-position-y: -96px !important; }
+        .piece.ghost { background-position-y: -128px !important; }
+
+        /* JavaScriptによる完全同期フレーム */
+        .piece.frame-1 { background-position-x: 0px; }
+        .piece.frame-2 { background-position-x: -32px; }
+        
+        /* シルエットに沿った発光アニメーション */
+        @keyframes silhouette-glow {
+            0%, 100% {
+                filter: drop-shadow(0 0 4px #fff) drop-shadow(0 0 4px #fff);
+            }
+            50% {
+                filter: drop-shadow(0 0 1px rgba(255,255,255,0.4));
+            }
+        }
+
+        @keyframes border-blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* --- パーティクル --- */
+        .particle {
+            position: fixed;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 2000;
+            animation: particle-anim 1s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+        }
+        .particle.ghost-fx {
+            width: 12px; height: 12px;
+            background-color: rgba(255, 255, 255, 0.8);
+            filter: blur(2px);
+        }
+        .particle.goal-fx {
+            width: 8px; height: 8px;
+        }
+        @keyframes particle-anim {
+            0% { transform: translate(0, 0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+        }
+
+        /* --- リザルト画面オーバーレイ --- */
+        #result-wait-overlay {
+            display: none;
+            position: fixed; 
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 900; cursor: pointer;
+        }
+        #result-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            justify-content: center; align-items: center; flex-direction: column;
+        }
+        .result-box {
+            background: #111; border: 2px solid #ffd700; border-radius: 8px;
+            padding: 30px; text-align: center; min-width: 300px;
+        }
+        .result-box h2 { color: #ffd700; margin-top: 0; }
+        .ranking-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px; border-bottom: 1px solid #333; font-size: 16px;
+        }
+        .ranking-rank { font-weight: bold; width: 40px; text-align: left; }
+        .ranking-name { flex-grow: 1; text-align: left; margin-left: 10px; }
+        .ranking-pos { color: #aaa; font-size: 14px; }
+        .result-buttons {
+            display: flex; gap: 10px; justify-content: center; margin-top: 20px;
+        }
+        .btn-reset-large { border-color: #ff5555; color: #ff5555; }
+        .btn-reset-large:hover { background: #550000; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-area">
+        <div id="setup-area">
+            <div class="hint">2文字で名前を入力（未入力は中立のゴーストになります）</div>
+            <div class="setup-inputs">
+                <div class="p-input"><span class="ui-tile bg-color-0"></span><input type="text" id="p1-input" value="AA" maxlength="2"></div>
+                <div class="p-input"><span class="ui-tile bg-color-1"></span><input type="text" id="p2-input" value="BB" maxlength="2"></div>
+                <div class="p-input"><span class="ui-tile bg-color-2"></span><input type="text" id="p3-input" value="" maxlength="2"></div>
+                <div class="p-input"><span class="ui-tile bg-color-3"></span><input type="text" id="p4-input" value="" maxlength="2"></div>
+                <button class="btn" onclick="startGameFromInput()">Start</button>
+            </div>
+        </div>
+
+        <div id="play-ui">
+            <div id="dice" class="pixel-art dice-face-1 dice-ready" onclick="rollDice()"></div>
+            <div id="message"></div>
+            <div id="player-status"></div>
+            <div id="action-buttons">
+                <button class="btn" onclick="startSwap('piece')">コマ入替</button>
+                <button class="btn" onclick="startSwap('color')">色入替</button>
+            </div>
+        </div>
+    </div>
+
+    <button id="small-reset-btn" onclick="resetGame()">Reset</button>
+
+    <div id="board-container">
+        <div id="board"></div>
+    </div>
+    
+    <div id="result-wait-overlay" onclick="showResult()"></div>
+
+    <div id="result-overlay">
+        <div class="result-box">
+            <h2>Game Finish!</h2>
+            <div id="ranking-list"></div>
+            <div class="result-buttons">
+                <button class="btn" onclick="rematchGame()">同じメンバーで再戦</button>
+                <button class="btn btn-reset-large" onclick="resetGame()">名前入力に戻る</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const TOTAL_CELLS = 23; 
+        const GOAL_POS = TOTAL_CELLS - 1;
+        const ANIMATION_TIME = 800; 
+        const SAVE_KEY = 'ghostStairs_localSave_v3'; 
+        
+        let players = [];
+        let pieces = [];
+        let turnIndex = 0;
+        let isWaitingForAction = false;
+        let swapMode = null; 
+        let selectedTargets = [];
+        let isGameOver = false;
+
+        // 全コマのアニメーションフレームを完全に同期させる（300msごとに切り替え）
+        setInterval(() => {
+            const isFrame1 = Math.floor(Date.now() / 300) % 2 === 0;
+            document.querySelectorAll('.piece').forEach(el => {
+                if(isFrame1) {
+                    el.classList.add('frame-1');
+                    el.classList.remove('frame-2');
+                } else {
+                    el.classList.add('frame-2');
+                    el.classList.remove('frame-1');
+                }
+            });
+        }, 50);
+
+        window.onload = () => {
+            createBoardCells();
+            if (loadState()) {
+                resumeGame();
+            } else {
+                document.getElementById('setup-area').style.display = 'flex';
+                document.getElementById('play-ui').style.display = 'none';
+                document.getElementById('small-reset-btn').style.display = 'none';
+            }
+        };
+
+        // --- パーティクル演出 ---
+        function spawnParticles(x, y, type) {
+            const count = type === 'goal-fx' ? 60 : 15;
+            const colors = ['#ff3333', '#3333ff', '#33cc33', '#ffff33', '#ffffff'];
+            
+            for(let i=0; i<count; i++) {
+                const p = document.createElement('div');
+                p.className = `particle ${type}`;
+                p.style.left = x + 'px';
+                p.style.top = y + 'px';
+                
+                if(type === 'goal-fx') {
+                    p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                }
+
+                const angle = Math.random() * Math.PI * 2;
+                const speed = type === 'goal-fx' ? (Math.random() * 150 + 50) : (Math.random() * 60 + 20);
+                const tx = Math.cos(angle) * speed;
+                let ty = Math.sin(angle) * speed;
+                
+                if (type === 'ghost-fx') ty -= 40;
+
+                p.style.setProperty('--tx', tx + 'px');
+                p.style.setProperty('--ty', ty + 'px');
+                
+                document.body.appendChild(p);
+                
+                setTimeout(() => p.remove(), 1000);
+            }
+        }
+
+        // --- セーブ関連 ---
+        function saveState() {
+            if (isGameOver) return; 
+            const state = { players, pieces, turnIndex };
+            localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+        }
+
+        function loadState() {
+            const saved = localStorage.getItem(SAVE_KEY);
+            if (!saved) return false;
+            try {
+                const state = JSON.parse(saved);
+                players = state.players;
+                pieces = state.pieces;
+                turnIndex = state.turnIndex;
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function clearSave() {
+            localStorage.removeItem(SAVE_KEY);
+        }
+
+        // --- ゲーム進行 ---
+        function startGameFromInput() {
+            const inputs = [
+                document.getElementById('p1-input'),
+                document.getElementById('p2-input'),
+                document.getElementById('p3-input'),
+                document.getElementById('p4-input')
+            ];
+            
+            let humanCount = 0;
+            players = []; pieces = [];
+
+            inputs.forEach((input, index) => {
+                const name = input.value.trim();
+                const isHuman = name.length > 0;
+                if(isHuman) humanCount++;
+                const pName = isHuman ? name : '中立';
+                
+                players.push({ id: index, name: pName, isHuman: isHuman, colorId: index });
+                pieces.push({ id: index, pos: 0, isGhost: !isHuman, currentSlot: -1 });
+            });
+
+            if(humanCount === 0) {
+                alert("少なくとも1人は名前を入力してください。");
+                return;
+            }
+
+            const humanIndices = players.filter(p => p.isHuman).map(p => p.id);
+            turnIndex = humanIndices[Math.floor(Math.random() * humanIndices.length)];
+            
+            isGameOver = false;
+            initUI();
+        }
+
+        function resumeGame() {
+            isGameOver = false;
+            initUI();
+        }
+
+        function rematchGame() {
+            pieces.forEach(p => {
+                p.pos = 0;
+                p.currentSlot = -1;
+                p.isGhost = !players.find(player => player.id === p.id).isHuman;
+            });
+            
+            const humanIndices = players.filter(p => p.isHuman).map(p => p.id);
+            turnIndex = humanIndices[Math.floor(Math.random() * humanIndices.length)];
+            
+            isGameOver = false;
+            document.getElementById('result-overlay').style.display = 'none';
+            document.getElementById('result-wait-overlay').style.display = 'none';
+            initUI();
+        }
+
+        function resetGame() {
+            clearSave();
+            document.getElementById('result-overlay').style.display = 'none';
+            document.getElementById('result-wait-overlay').style.display = 'none';
+            document.getElementById('setup-area').style.display = 'flex';
+            document.getElementById('play-ui').style.display = 'none';
+            document.getElementById('small-reset-btn').style.display = 'none';
+            document.getElementById('player-status').innerHTML = '';
+            document.getElementById('board').innerHTML = '';
+            players = []; pieces = [];
+            createBoardCells();
+        }
+
+        function initUI() {
+            document.getElementById('setup-area').style.display = 'none';
+            document.getElementById('play-ui').style.display = 'flex';
+            document.getElementById('small-reset-btn').style.display = 'block'; 
+            
+            const statusArea = document.getElementById('player-status');
+            statusArea.innerHTML = '';
+            players.forEach(p => {
+                const pInfo = document.createElement('div');
+                pInfo.className = 'player-info';
+                pInfo.id = `p-info-${p.id}`;
+                pInfo.innerHTML = `<div class="ui-tile bg-color-${p.colorId}" id="tile-${p.id}"></div><div class="player-name">${p.name}</div>`;
+                statusArea.appendChild(pInfo);
+            });
+
+            const board = document.getElementById('board');
+            document.querySelectorAll('.piece').forEach(el => el.remove()); 
+            pieces.forEach(p => {
+                const pieceEl = document.createElement('div');
+                pieceEl.className = `piece pixel-art piece-color-${p.id} ${p.isGhost ? 'ghost' : ''}`;
+                pieceEl.id = `piece-${p.id}`;
+                board.appendChild(pieceEl);
+            });
+
+            setTimeout(() => {
+                renderPieces();
+                updateTurnUI();
+            }, 100);
+
+            window.addEventListener('resize', () => {
+                setTimeout(renderPieces, 200); 
+            });
+        }
+
+        function createBoardCells() {
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+            for (let i = 0; i < TOTAL_CELLS; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.id = `cell-${i}`;
+                cell.innerText = i === 0 ? 'S' : (i === GOAL_POS ? 'GOAL' : i);
+                if (i === GOAL_POS) cell.style.color = '#ffd700'; 
+                board.appendChild(cell);
+            }
+        }
+
+        function renderPieces() {
+            let cellOccupants = {};
+            for (let i = 0; i < TOTAL_CELLS; i++) {
+                cellOccupants[i] = { pieces: [], usedSlots: [false, false, false, false] };
+            }
+
+            pieces.forEach(p => cellOccupants[p.pos].pieces.push(p));
+            const boardRect = document.getElementById('board').getBoundingClientRect();
+
+            for (let cellId in cellOccupants) {
+                let cellData = cellOccupants[cellId];
+                if (cellData.pieces.length === 0) continue;
+
+                const cellEl = document.getElementById(`cell-${cellId}`);
+                if (!cellEl) continue;
+
+                const cellRect = cellEl.getBoundingClientRect();
+                const cellLeft = cellRect.left - boardRect.left;
+                const cellTop = cellEl.offsetTop; 
+                const cellWidth = cellRect.width;
+                const cellHeight = cellRect.height;
+
+                cellData.pieces.forEach(p => {
+                    if (p.currentSlot !== -1 && p.currentSlot < 4) {
+                        if (cellData.usedSlots[p.currentSlot]) p.currentSlot = -1;
+                        else cellData.usedSlots[p.currentSlot] = true;
+                    }
+                });
+
+                cellData.pieces.forEach(p => {
+                    if (p.currentSlot === -1) {
+                        let availableSlots = [];
+                        for(let i=0; i<4; i++) if(!cellData.usedSlots[i]) availableSlots.push(i);
+                        
+                        if(availableSlots.length > 0) {
+                            p.currentSlot = availableSlots[Math.floor(Math.random() * availableSlots.length)];
+                            cellData.usedSlots[p.currentSlot] = true;
+                        } else p.currentSlot = 0; 
+                    }
+
+                    const pieceEl = document.getElementById(`piece-${p.id}`);
+                    if (p.isGhost) pieceEl.classList.add('ghost');
+                    else pieceEl.classList.remove('ghost');
+
+                    const pieceSize = 32;
+                    const startY = 16; 
+                    const slotHeight = (cellHeight - startY - pieceSize) / 3; 
+
+                    pieceEl.style.left = `${cellLeft + (cellWidth - pieceSize) / 2}px`;
+                    pieceEl.style.top = `${cellTop + startY + (p.currentSlot * slotHeight)}px`;
+                });
+            }
+        }
+
+        function updateMessage(msg) {
+            document.getElementById('message').innerHTML = msg.replace(/\n/g, '<br>');
+        }
+
+        function updateTurnUI() {
+            if(isGameOver) return;
+            saveState(); 
+            document.querySelectorAll('.player-info').forEach(el => el.classList.remove('active-turn'));
+            document.getElementById(`p-info-${turnIndex}`).classList.add('active-turn');
+            
+            const dice = document.getElementById('dice');
+            dice.classList.remove('disabled');
+            dice.classList.add('dice-ready'); 
+            
+            updateMessage(`【${players[turnIndex].name} のターン】\nサイコロを振ってください。`);
+            isWaitingForAction = false;
+            swapMode = null;
+            selectedTargets = [];
+        }
+
+        function rollDice() {
+            if(isWaitingForAction || isGameOver) return;
+
+            const dice = document.getElementById('dice');
+            dice.classList.add('disabled');
+            dice.classList.remove('dice-ready'); 
+            isWaitingForAction = true;
+
+            document.getElementById('action-buttons').style.display = 'none';
+            resetSelectables();
+
+            let rollCount = 0;
+            const maxRolls = 10;
+            const faces = [1, 2, 3, 4, 'g'];
+            
+            const rollInterval = setInterval(() => {
+                const randomFace = faces[Math.floor(Math.random() * faces.length)];
+                dice.className = `pixel-art disabled dice-face-${randomFace}`;
+                rollCount++;
+                
+                if (rollCount >= maxRolls) {
+                    clearInterval(rollInterval);
+                    const resultFaces = [1, 2, 3, 4, 'g', 'g'];
+                    const finalResult = resultFaces[Math.floor(Math.random() * resultFaces.length)];
+                    dice.className = `pixel-art disabled dice-face-${finalResult}`;
+                    
+                    if (finalResult === 'g') handleGhostRoll();
+                    else handleNumberRoll(finalResult);
+                }
+            }, 60);
+        }
+
+        function handleNumberRoll(num) {
+            const myPiece = pieces.find(p => p.id === turnIndex); 
+
+            if (!myPiece.isGhost) {
+                updateMessage(`${players[turnIndex].name} が ${num} 進みます。`);
+                myPiece.currentSlot = -1;
+                myPiece.pos = Math.min(myPiece.pos + num, GOAL_POS);
+                
+                renderPieces();
+                checkGoalAndNext(myPiece.pos);
+            } else {
+                updateMessage(`動かしたいゴーストを ${num} 進めます。選択してください。`);
+                document.querySelectorAll('.piece.ghost').forEach(el => {
+                    el.classList.add('selectable');
+                    el.onclick = () => {
+                        const targetPiece = pieces.find(p => p.id === parseInt(el.id.split('-')[1]));
+                        targetPiece.currentSlot = -1;
+                        targetPiece.pos = Math.min(targetPiece.pos + num, GOAL_POS);
+                        
+                        resetSelectables();
+                        renderPieces();
+                        updateMessage(`ゴーストが移動しました！`);
+                        checkGoalAndNext(targetPiece.pos);
+                    };
+                });
+            }
+        }
+
+        function checkGoalAndNext(pos) {
+            if (pos === GOAL_POS) {
+                setTimeout(triggerGameOver, ANIMATION_TIME);
+            } else {
+                setTimeout(nextTurn, ANIMATION_TIME);
+            }
+        }
+
+        function triggerGameOver() {
+            isGameOver = true;
+            clearSave(); 
+            updateMessage(`誰かがゴールしました！正体を明かします！\n（画面をタッチして結果発表へ）`);
+
+            pieces.forEach(p => p.isGhost = false);
+            renderPieces();
+            
+            spawnParticles(window.innerWidth / 2, window.innerHeight / 2, 'goal-fx');
+
+            document.getElementById('result-wait-overlay').style.display = 'block';
+        }
+
+        function showResult() {
+            document.getElementById('result-wait-overlay').style.display = 'none';
+            
+            const ranking = [...pieces].sort((a, b) => b.pos - a.pos);
+            
+            const listEl = document.getElementById('ranking-list');
+            listEl.innerHTML = '';
+
+            ranking.forEach((piece, index) => {
+                const owner = players.find(p => p.colorId === piece.id);
+                
+                const item = document.createElement('div');
+                item.className = 'ranking-item';
+                
+                let rankText = `${index + 1}位`;
+                if(index === 0) rankText = `<span style="color:#ffd700">🥇 1位</span>`;
+                
+                item.innerHTML = `
+                    <div class="ranking-rank">${rankText}</div>
+                    <div class="ui-tile bg-color-${piece.id}"></div>
+                    <div class="ranking-name">${owner.name} ${owner.isHuman ? '' : '<span style="font-size:10px;color:#888;">(中立)</span>'}</div>
+                    <div class="ranking-pos">${piece.pos === GOAL_POS ? 'GOAL' : piece.pos + 'マス'}</div>
+                `;
+                listEl.appendChild(item);
+            });
+
+            document.getElementById('result-overlay').style.display = 'flex';
+        }
+
+        function handleGhostRoll() {
+            const unghosted = pieces.filter(p => !p.isGhost);
+            if (unghosted.length > 0) {
+                updateMessage(`【ゴーストの目】ゴーストでないコマを選択してください。`);
+                document.querySelectorAll('.piece:not(.ghost)').forEach(el => {
+                    el.classList.add('selectable');
+                    el.onclick = () => {
+                        const targetId = parseInt(el.id.split('-')[1]);
+                        pieces.find(p => p.id === targetId).isGhost = true;
+                        
+                        resetSelectables();
+                        renderPieces(); 
+                        
+                        const rect = el.getBoundingClientRect();
+                        spawnParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, 'ghost-fx');
+
+                        updateMessage(`ゴースト化しました！`);
+                        setTimeout(nextTurn, 1500); 
+                    };
+                });
+            } else {
+                updateMessage(`【ゴーストの出目】入れ替えを選択してください。`);
+                document.getElementById('action-buttons').style.display = 'flex';
+            }
+        }
+
+        function startSwap(mode) {
+            document.getElementById('action-buttons').style.display = 'none';
+            swapMode = mode;
+            selectedTargets = [];
+
+            if (mode === 'piece') {
+                updateMessage(`【コマ入替】1つ目のゴーストを選択。`);
+                document.querySelectorAll('.piece.ghost').forEach(el => {
+                    el.classList.add('selectable');
+                    el.onclick = () => selectForSwap(el, 'piece');
+                });
+            } else if (mode === 'color') {
+                updateMessage(`【色入替】1つ目のプレイヤーを選択。`);
+                document.querySelectorAll('.player-info').forEach(el => {
+                    el.classList.add('selectable');
+                    el.onclick = () => selectForSwap(el, 'color');
+                });
+            }
+        }
+
+        function selectForSwap(el, mode) {
+            if(el.classList.contains('selected')) return;
+            el.classList.remove('selectable');
+            el.classList.add('selected');
+            
+            selectedTargets.push(parseInt(el.id.split('-')[2] || el.id.split('-')[1]));
+
+            if (selectedTargets.length === 1) {
+                updateMessage(`2つ目 を選択してください。`);
+            } else if (selectedTargets.length === 2) {
+                resetSelectables();
+                executeSwap(mode);
+            }
+        }
+
+        function executeSwap(mode) {
+            const [id1, id2] = selectedTargets;
+
+            if (mode === 'piece') {
+                const p1 = pieces.find(p => p.id === id1);
+                const p2 = pieces.find(p => p.id === id2);
+                
+                [p1.pos, p2.pos] = [p2.pos, p1.pos];
+                [p1.currentSlot, p2.currentSlot] = [p2.currentSlot, p1.currentSlot];
+                
+                updateMessage(`場所が入れ替わりました！`);
+                renderPieces(); 
+                setTimeout(nextTurn, ANIMATION_TIME);
+
+            } else if (mode === 'color') {
+                const player1 = players.find(p => p.id === id1);
+                const player2 = players.find(p => p.id === id2);
+                
+                [player1.colorId, player2.colorId] = [player2.colorId, player1.colorId];
+
+                document.getElementById(`tile-${id1}`).className = `ui-tile bg-color-${player1.colorId}`;
+                document.getElementById(`tile-${id2}`).className = `ui-tile bg-color-${player2.colorId}`;
+                
+                updateMessage(`色が入れ替わりました！`);
+                setTimeout(nextTurn, 2000); 
+            }
+        }
+
+        function resetSelectables() {
+            document.querySelectorAll('.selectable, .selected').forEach(el => {
+                el.classList.remove('selectable', 'selected');
+                el.onclick = null;
+            });
+        }
+
+        function nextTurn() {
+            if(isGameOver) return;
+            do {
+                turnIndex = (turnIndex + 1) % players.length;
+            } while (!players[turnIndex].isHuman);
+            updateTurnUI();
+        }
+    </script>
+</body>
+</html>
