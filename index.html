@@ -34,14 +34,18 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
+            align-items: center;
             justify-content: center;
+            max-width: 1000px;
+            margin: 0 auto;
         }
-        .hint { font-size: 12px; color: #aaa; }
+        .hint { font-size: 12px; color: #aaa; text-align: center; }
         .setup-inputs {
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
             align-items: center;
+            justify-content: center;
         }
         .p-input {
             display: flex;
@@ -60,6 +64,7 @@
         .rule-setting {
             display: flex; align-items: center; gap: 5px;
             font-size: 13px; margin: 5px 0;
+            justify-content: center;
         }
         .rule-setting input { cursor: pointer; margin: 0; }
         .rule-setting label { cursor: pointer; color: #ddd; }
@@ -67,10 +72,13 @@
         /* プレイ中のUI (サイコロと右側コンテンツを分ける) */
         #play-ui {
             display: none;
-            flex-wrap: nowrap; 
+            flex-wrap: wrap; 
             gap: 15px;
             align-items: center;
+            justify-content: center;
             position: relative;
+            max-width: 1000px;
+            margin: 0 auto;
         }
         
         #play-ui-content {
@@ -78,7 +86,8 @@
             flex-wrap: wrap;
             gap: 10px;
             align-items: center;
-            flex: 1 1 0; 
+            justify-content: center;
+            flex: 0 1 auto; 
         }
         
         #message {
@@ -327,7 +336,7 @@
                 <div class="p-input"><span class="ui-tile bg-color-3"></span><input type="text" id="p4-input" value="" maxlength="2"></div>
             </div>
             <div class="rule-setting">
-                <label><input type="checkbox" id="color-swap-rule"> 「色の入れ替え」ルールあり</label>
+                <label><input type="checkbox" id="color-swap-rule"> 「色の入れ替え」ルールあり (上級者向け)</label>
             </div>
             <div>
                 <button class="btn" onclick="startGameFromInput()">Start</button>
@@ -743,7 +752,14 @@
         function triggerGameOver() {
             isGameOver = true;
             clearSave(); 
-            updateMessage(`誰かがゴールしました！正体を明かします！\n（画面をタッチして結果発表へ）`);
+            
+            const goalPiece = pieces.find(p => p.pos === GOAL_POS);
+            if (goalPiece && !goalPiece.isGhost) {
+                const owner = players.find(p => p.colorId === goalPiece.id);
+                updateMessage(`${owner.name} がそのままゴールしました！\n（画面をタッチして結果発表へ）`);
+            } else {
+                updateMessage(`誰かがゴールしました！正体を明かします！\n（画面をタッチして結果発表へ）`);
+            }
 
             pieces.forEach(p => p.isGhost = false);
             renderPieces();
@@ -786,7 +802,7 @@
         function handleGhostRoll() {
             const unghosted = pieces.filter(p => !p.isGhost);
             if (unghosted.length > 0) {
-                updateMessage(`【ゴーストの出目】ゴーストでないコマを選択してください。`);
+                updateMessage(`【ゴーストの目】ゴーストでないコマを選択してください。`);
                 document.querySelectorAll('.piece:not(.ghost)').forEach(el => {
                     el.classList.add('selectable');
                     el.onclick = () => {
@@ -805,7 +821,7 @@
                 });
             } else {
                 if (isColorSwapEnabled) {
-                    updateMessage(`【ゴーストの出目】入れ替えを選択してください。`);
+                    updateMessage(`【ゴーストの目】入れ替えを選択してください。`);
                     document.getElementById('action-buttons').style.display = 'flex';
                 } else {
                     startSwap('piece');
@@ -819,13 +835,13 @@
             selectedTargets = [];
 
             if (mode === 'piece') {
-                updateMessage(`【コマ入替】1つ出目のゴーストを選択。`);
+                updateMessage(`【コマ入替】1つ目のゴーストを選択。`);
                 document.querySelectorAll('.piece.ghost').forEach(el => {
                     el.classList.add('selectable');
                     el.onclick = () => selectForSwap(el, 'piece');
                 });
             } else if (mode === 'color') {
-                updateMessage(`【色入替】1つ出目のプレイヤーを選択。`);
+                updateMessage(`【色入替】1つ目のプレイヤーを選択。`);
                 document.querySelectorAll('.player-info').forEach(el => {
                     el.classList.add('selectable');
                     el.onclick = () => selectForSwap(el, 'color');
@@ -843,9 +859,9 @@
                 selectedTargets = selectedTargets.filter(targetId => targetId !== id);
                 
                 if (mode === 'piece') {
-                    updateMessage(`【コマ入替】1つ出目のゴーストを選択。`);
+                    updateMessage(`【コマ入替】1つ目のゴーストを選択。`);
                 } else if (mode === 'color') {
-                    updateMessage(`【色入替】1つ出目のプレイヤーを選択。`);
+                    updateMessage(`【色入替】1つ目のプレイヤーを選択。`);
                 }
                 return;
             }
@@ -855,7 +871,7 @@
             selectedTargets.push(id);
 
             if (selectedTargets.length === 1) {
-                updateMessage(`2つ出目 を選択してください。（もう一度タッチでキャンセル）`);
+                updateMessage(`2つ目 を選択してください。（もう一度タッチでキャンセル）`);
             } else if (selectedTargets.length === 2) {
                 resetSelectables();
                 executeSwap(mode);
