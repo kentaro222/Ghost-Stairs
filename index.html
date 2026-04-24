@@ -64,17 +64,25 @@
         .rule-setting input { cursor: pointer; margin: 0; }
         .rule-setting label { cursor: pointer; color: #ddd; }
 
-        /* プレイ中のUI */
+        /* プレイ中のUI (サイコロと右側コンテンツを分ける) */
         #play-ui {
             display: none;
-            flex-wrap: wrap; 
-            gap: 10px;
+            flex-wrap: nowrap; 
+            gap: 15px;
             align-items: center;
             position: relative;
         }
         
+        #play-ui-content {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            flex: 1 1 0; 
+        }
+        
         #message {
-            flex: 1 1 150px; 
+            flex: 0 1 auto; 
             font-size: 13px;
             color: #ffeb3b;
             min-height: 40px;
@@ -82,6 +90,7 @@
             background: rgba(255, 255, 255, 0.05);
             padding: 5px 10px; border-radius: 4px;
             line-height: 1.4;
+            min-width: 150px;
         }
 
         #player-status {
@@ -190,7 +199,7 @@
             transition: border-color 0.5s, box-shadow 0.5s;
         }
         #dice:hover:not(.disabled) { background-color: #222; }
-        #dice.disabled { border-color: #555 !important; cursor: not-allowed; box-shadow: none !important; opacity: 0.8; animation: none !important; }
+        #dice.disabled { border-color: #555 !important; cursor: default; box-shadow: none !important; opacity: 0.8; animation: none !important; }
 
         .dice-ready {
             animation: dice-pulse 2s infinite alternate;
@@ -289,14 +298,14 @@
         }
         .result-box {
             background: #111; border: 2px solid #ffd700; border-radius: 8px;
-            padding: 30px; text-align: center; min-width: 300px;
+            padding: 30px; text-align: center; min-width: 320px; /* 少し広げる */
         }
         .result-box h2 { color: #ffd700; margin-top: 0; }
         .ranking-item {
             display: flex; align-items: center; justify-content: space-between;
-            padding: 8px; border-bottom: 1px solid #333; font-size: 16px;
+            padding: 10px 8px; border-bottom: 1px solid #333; font-size: 16px;
         }
-        .ranking-rank { font-weight: bold; width: 40px; text-align: left; }
+        .ranking-rank { font-weight: bold; width: 70px; text-align: left; white-space: nowrap; } /* 修正: 幅拡張&改行禁止 */
         .ranking-name { flex-grow: 1; text-align: left; margin-left: 10px; }
         .ranking-pos { color: #aaa; font-size: 14px; }
         .result-buttons {
@@ -318,7 +327,7 @@
                 <div class="p-input"><span class="ui-tile bg-color-3"></span><input type="text" id="p4-input" value="" maxlength="2"></div>
             </div>
             <div class="rule-setting">
-                <label><input type="checkbox" id="color-swap-rule" checked> 「色の入れ替え」ルールあり</label>
+                <label><input type="checkbox" id="color-swap-rule"> 「色の入れ替え」ルールあり</label>
             </div>
             <div>
                 <button class="btn" onclick="startGameFromInput()">Start</button>
@@ -326,12 +335,17 @@
         </div>
 
         <div id="play-ui">
-            <div id="dice" class="pixel-art dice-face-1 dice-ready" onclick="rollDice()"></div>
-            <div id="message"></div>
-            <div id="player-status"></div>
-            <div id="action-buttons">
-                <button class="btn" onclick="startSwap('piece')">コマ入替</button>
-                <button class="btn" onclick="startSwap('color')">色入替</button>
+            <!-- サイコロは左端に固定 -->
+            <div id="dice" class="pixel-art dice-face-1 dice-ready"></div>
+            
+            <!-- ログとプレイヤーステータスは右側のコンテナにまとめる -->
+            <div id="play-ui-content">
+                <div id="message"></div>
+                <div id="player-status"></div>
+                <div id="action-buttons">
+                    <button class="btn" onclick="startSwap('piece')">コマ入替</button>
+                    <button class="btn" onclick="startSwap('color')">色入替</button>
+                </div>
             </div>
         </div>
     </div>
@@ -359,8 +373,7 @@
         const TOTAL_CELLS = 23; 
         const GOAL_POS = TOTAL_CELLS - 1;
         const ANIMATION_TIME = 800; 
-        // セーブデータの仕様が変わったためキーを変更
-        const SAVE_KEY = 'ghostStairs_localSave_v4'; 
+        const SAVE_KEY = 'ghostStairs_localSave_v5'; 
         
         let players = [];
         let pieces = [];
@@ -369,9 +382,24 @@
         let swapMode = null; 
         let selectedTargets = [];
         let isGameOver = false;
-        let isColorSwapEnabled = true;
+        let isColorSwapEnabled = false;
 
-        // 全コマのアニメーションフレームを完全に同期させる（300msごとに切り替え）
+        // --- 画面どこでもタッチでサイコロを振るイベントリスナー ---
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.btn') || e.target.closest('input') || 
+                e.target.closest('.player-info') || e.target.closest('.piece.selectable') || 
+                e.target.closest('#small-reset-btn') || e.target.closest('#setup-area') ||
+                e.target.closest('#result-overlay') || e.target.closest('#result-wait-overlay') ||
+                e.target.closest('.rule-setting') || e.target.closest('.piece.selected')) {
+                return;
+            }
+            
+            const playUi = document.getElementById('play-ui');
+            if (playUi.style.display !== 'none' && !isWaitingForAction && !isGameOver && swapMode === null) {
+                rollDice();
+            }
+        });
+
         setInterval(() => {
             const isFrame1 = Math.floor(Date.now() / 300) % 2 === 0;
             document.querySelectorAll('.piece').forEach(el => {
@@ -396,7 +424,6 @@
             }
         };
 
-        // --- パーティクル演出 ---
         function spawnParticles(x, y, type) {
             const count = type === 'goal-fx' ? 60 : 15;
             const colors = ['#ff3333', '#3333ff', '#33cc33', '#ffff33', '#ffffff'];
@@ -427,7 +454,6 @@
             }
         }
 
-        // --- セーブ関連 ---
         function saveState() {
             if (isGameOver) return; 
             const state = { players, pieces, turnIndex, isColorSwapEnabled };
@@ -442,7 +468,7 @@
                 players = state.players;
                 pieces = state.pieces;
                 turnIndex = state.turnIndex;
-                isColorSwapEnabled = state.isColorSwapEnabled !== undefined ? state.isColorSwapEnabled : true;
+                isColorSwapEnabled = state.isColorSwapEnabled !== undefined ? state.isColorSwapEnabled : false;
                 return true;
             } catch (e) {
                 return false;
@@ -453,7 +479,6 @@
             localStorage.removeItem(SAVE_KEY);
         }
 
-        // --- ゲーム進行 ---
         function startGameFromInput() {
             const inputs = [
                 document.getElementById('p1-input'),
@@ -475,13 +500,11 @@
                 pieces.push({ id: index, pos: 0, isGhost: !isHuman, currentSlot: -1 });
             });
 
-            // 1人から「2人」に変更
             if(humanCount < 2) {
                 alert("少なくとも2人は名前を入力してください。");
                 return;
             }
 
-            // ルール設定の取得
             isColorSwapEnabled = document.getElementById('color-swap-rule').checked;
 
             const humanIndices = players.filter(p => p.isHuman).map(p => p.id);
@@ -521,6 +544,9 @@
             document.getElementById('small-reset-btn').style.display = 'none';
             document.getElementById('player-status').innerHTML = '';
             document.getElementById('board').innerHTML = '';
+            
+            document.getElementById('color-swap-rule').checked = false;
+            
             players = []; pieces = [];
             createBoardCells();
         }
@@ -744,10 +770,11 @@
                 let rankText = `${index + 1}位`;
                 if(index === 0) rankText = `<span style="color:#ffd700">🥇 1位</span>`;
                 
+                // 修正：NPCの名前は「中立」のみにし、幅を広げて改行を防ぐ
                 item.innerHTML = `
                     <div class="ranking-rank">${rankText}</div>
                     <div class="ui-tile bg-color-${piece.id}"></div>
-                    <div class="ranking-name">${owner.name} ${owner.isHuman ? '' : '<span style="font-size:10px;color:#888;">(中立)</span>'}</div>
+                    <div class="ranking-name">${owner.name}</div>
                     <div class="ranking-pos">${piece.pos === GOAL_POS ? 'GOAL' : piece.pos + 'マス'}</div>
                 `;
                 listEl.appendChild(item);
@@ -777,12 +804,10 @@
                     };
                 });
             } else {
-                // ルール設定に応じて分岐
                 if (isColorSwapEnabled) {
                     updateMessage(`【ゴーストの出目】入れ替えを選択してください。`);
                     document.getElementById('action-buttons').style.display = 'flex';
                 } else {
-                    // 色入れ替えなしの場合は直接「コマ入替」に移行
                     startSwap('piece');
                 }
             }
@@ -794,13 +819,13 @@
             selectedTargets = [];
 
             if (mode === 'piece') {
-                updateMessage(`【コマ入替】1つ目のゴーストを選択。`);
+                updateMessage(`【コマ入替】1つ出目のゴーストを選択。`);
                 document.querySelectorAll('.piece.ghost').forEach(el => {
                     el.classList.add('selectable');
                     el.onclick = () => selectForSwap(el, 'piece');
                 });
             } else if (mode === 'color') {
-                updateMessage(`【色入替】1つ目のプレイヤーを選択。`);
+                updateMessage(`【色入替】1つ出目のプレイヤーを選択。`);
                 document.querySelectorAll('.player-info').forEach(el => {
                     el.classList.add('selectable');
                     el.onclick = () => selectForSwap(el, 'color');
@@ -809,14 +834,28 @@
         }
 
         function selectForSwap(el, mode) {
-            if(el.classList.contains('selected')) return;
+            const id = parseInt(el.id.split('-')[2] || el.id.split('-')[1]);
+
+            if(el.classList.contains('selected')) {
+                el.classList.remove('selected');
+                el.classList.add('selectable');
+                
+                selectedTargets = selectedTargets.filter(targetId => targetId !== id);
+                
+                if (mode === 'piece') {
+                    updateMessage(`【コマ入替】1つ出目のゴーストを選択。`);
+                } else if (mode === 'color') {
+                    updateMessage(`【色入替】1つ出目のプレイヤーを選択。`);
+                }
+                return;
+            }
+
             el.classList.remove('selectable');
             el.classList.add('selected');
-            
-            selectedTargets.push(parseInt(el.id.split('-')[2] || el.id.split('-')[1]));
+            selectedTargets.push(id);
 
             if (selectedTargets.length === 1) {
-                updateMessage(`2つ目 を選択してください。`);
+                updateMessage(`2つ出目 を選択してください。（もう一度タッチでキャンセル）`);
             } else if (selectedTargets.length === 2) {
                 resetSelectables();
                 executeSwap(mode);
