@@ -5,6 +5,52 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Ghost Stairs</title>
     <style>
+        /* --- 画面サイズに応じた変数設定（レスポンシブ対応） --- */
+        :root {
+            --cell-min-width: 75px;
+            --cell-height: 120px;
+            --piece-size: 32px;
+            --piece-bg-w: 64px;
+            --piece-bg-h: 160px;
+            --dice-size: 48px;
+            --dice-bg-w: 240px;
+            --cell-font-size: 12px;
+            --ui-font-size: 13px;
+            --ui-icon-size: 14px;
+        }
+
+        /* タブレット向け */
+        @media (min-width: 768px) {
+            :root {
+                --cell-min-width: 100px;
+                --cell-height: 150px;
+                --piece-size: 48px;
+                --piece-bg-w: 96px;
+                --piece-bg-h: 240px;
+                --dice-size: 64px;
+                --dice-bg-w: 320px;
+                --cell-font-size: 16px;
+                --ui-font-size: 16px;
+                --ui-icon-size: 18px;
+            }
+        }
+
+        /* PC・大画面向け */
+        @media (min-width: 1024px) {
+            :root {
+                --cell-min-width: 120px;
+                --cell-height: 180px;
+                --piece-size: 64px;
+                --piece-bg-w: 128px;
+                --piece-bg-h: 320px;
+                --dice-size: 80px;
+                --dice-bg-w: 400px;
+                --cell-font-size: 20px;
+                --ui-font-size: 18px;
+                --ui-icon-size: 24px;
+            }
+        }
+
         body {
             margin: 0;
             padding: 0;
@@ -51,19 +97,21 @@
             display: flex;
             align-items: center;
             gap: 5px;
-            font-size: 14px;
+            font-size: var(--ui-font-size);
         }
         .p-input input {
-            width: 30px;
+            width: calc(var(--ui-font-size) * 2.5);
             background: #000; color: #fff;
             border: 1px solid #fff; border-radius: 2px;
             text-align: center; font-family: inherit;
+            font-size: var(--ui-font-size);
+            padding: 2px;
         }
         
         /* ルール設定 */
         .rule-setting {
             display: flex; align-items: center; gap: 5px;
-            font-size: 13px; margin: 5px 0;
+            font-size: var(--ui-font-size); margin: 5px 0;
             justify-content: center;
         }
         .rule-setting input { cursor: pointer; margin: 0; }
@@ -92,7 +140,7 @@
         
         #message {
             flex: 0 1 auto; 
-            font-size: 13px;
+            font-size: var(--ui-font-size);
             color: #ffeb3b;
             min-height: 40px;
             display: flex; align-items: center;
@@ -111,14 +159,14 @@
         .player-info {
             display: flex; align-items: center;
             padding: 4px 8px; border: 1px solid #333; border-radius: 4px;
-            font-size: 14px; font-weight: bold; background: #1a1a1a;
+            font-size: var(--ui-font-size); font-weight: bold; background: #1a1a1a;
             cursor: pointer; transition: all 0.2s;
         }
         .player-info.active-turn { border-color: #fff; background: #333; }
         .player-info.selectable { border: 1px dashed #fff; animation: border-blink 1s infinite; }
         .player-info.selected { border: 2px solid #ff3333; }
         
-        .ui-tile { width: 14px; height: 14px; margin-right: 6px; border: 1px solid #fff; display: inline-block; }
+        .ui-tile { width: var(--ui-icon-size); height: var(--ui-icon-size); margin-right: 6px; border: 1px solid #fff; display: inline-block; }
         .bg-color-0 { background-color: #ff3333; }
         .bg-color-1 { background-color: #3333ff; }
         .bg-color-2 { background-color: #33cc33; }
@@ -128,7 +176,7 @@
         .btn {
             background: #000; color: #fff; border: 1px solid #fff;
             padding: 8px 12px; cursor: pointer; font-family: inherit;
-            border-radius: 4px; font-weight: bold; font-size: 12px;
+            border-radius: 4px; font-weight: bold; font-size: var(--ui-font-size);
             white-space: nowrap;
         }
         .btn:hover { background: #333; }
@@ -162,11 +210,11 @@
         #board {
             position: relative;
             width: 100%;
-            max-width: 1000px; 
+            max-width: 1200px; 
             margin: 0 auto; 
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(75px, 1fr));
-            grid-auto-rows: 120px; 
+            grid-template-columns: repeat(auto-fit, minmax(var(--cell-min-width), 1fr));
+            grid-auto-rows: var(--cell-height); 
             gap: 8px;
             padding-bottom: 80px; 
         }
@@ -178,7 +226,7 @@
             box-sizing: border-box;
             display: flex;
             justify-content: center;
-            font-size: 12px;
+            font-size: var(--cell-font-size);
             color: #777;
             padding-top: 4px;
         }
@@ -196,15 +244,15 @@
 
         /* --- サイコロ --- */
         #dice {
-            flex: 0 0 48px;
-            height: 48px;
+            flex: 0 0 var(--dice-size);
+            height: var(--dice-size);
             border: 2px solid #fff; border-radius: 8px;
             cursor: pointer; background-color: #111;
             box-shadow: 0 2px 4px rgba(255,255,255,0.1);
             
             background-image: url('dice_sheet.png');
             background-repeat: no-repeat;
-            background-size: 240px 48px; 
+            background-size: var(--dice-bg-w) var(--dice-size); 
             transition: border-color 0.5s, box-shadow 0.5s;
         }
         #dice:hover:not(.disabled) { background-color: #222; }
@@ -219,19 +267,19 @@
         }
 
         .dice-face-1 { background-position: 0px 0px; }
-        .dice-face-2 { background-position: -48px 0px; }
-        .dice-face-3 { background-position: -96px 0px; }
-        .dice-face-4 { background-position: -144px 0px; }
-        .dice-face-g { background-position: -192px 0px; }
+        .dice-face-2 { background-position: calc(var(--dice-size) * -1) 0px; }
+        .dice-face-3 { background-position: calc(var(--dice-size) * -2) 0px; }
+        .dice-face-4 { background-position: calc(var(--dice-size) * -3) 0px; }
+        .dice-face-g { background-position: calc(var(--dice-size) * -4) 0px; }
 
         /* --- コマ --- */
         .piece {
             position: absolute;
-            width: 32px;  
-            height: 32px; 
+            width: var(--piece-size);  
+            height: var(--piece-size); 
             background-image: url('pieces_sheet.png');
             background-repeat: no-repeat;
-            background-size: 64px 160px; 
+            background-size: var(--piece-bg-w) var(--piece-bg-h); 
             
             transition: left 0.8s ease-in-out, top 0.8s ease-in-out;
             cursor: pointer;
@@ -251,13 +299,13 @@
         }
 
         .piece-color-0 { background-position-y: 0px !important; }
-        .piece-color-1 { background-position-y: -32px !important; }
-        .piece-color-2 { background-position-y: -64px !important; }
-        .piece-color-3 { background-position-y: -96px !important; }
-        .piece.ghost { background-position-y: -128px !important; }
+        .piece-color-1 { background-position-y: calc(var(--piece-size) * -1) !important; }
+        .piece-color-2 { background-position-y: calc(var(--piece-size) * -2) !important; }
+        .piece-color-3 { background-position-y: calc(var(--piece-size) * -3) !important; }
+        .piece.ghost { background-position-y: calc(var(--piece-size) * -4) !important; }
 
         .piece.frame-1 { background-position-x: 0px; }
-        .piece.frame-2 { background-position-x: -32px; }
+        .piece.frame-2 { background-position-x: calc(var(--piece-size) * -1); }
         
         @keyframes silhouette-glow {
             0%, 100% { filter: drop-shadow(0 0 4px #fff) drop-shadow(0 0 4px #fff); }
@@ -651,8 +699,8 @@
                     if (p.isGhost) pieceEl.classList.add('ghost');
                     else pieceEl.classList.remove('ghost');
 
-                    const pieceSize = 32;
-                    const startY = 16; 
+                    const pieceSize = pieceEl.offsetWidth; // DOMから実際のサイズを取得
+                    const startY = cellHeight * 0.15; // マス上部の数字用余白（高さの15%）
                     const slotHeight = (cellHeight - startY - pieceSize) / 3; 
 
                     pieceEl.style.left = `${cellLeft + (cellWidth - pieceSize) / 2}px`;
@@ -835,13 +883,13 @@
             selectedTargets = [];
 
             if (mode === 'piece') {
-                updateMessage(`【コマ入替】1つ出目のゴーストを選択。`);
+                updateMessage(`【コマ入替】1つ目のゴーストを選択。`);
                 document.querySelectorAll('.piece.ghost').forEach(el => {
                     el.classList.add('selectable');
                     el.onclick = () => selectForSwap(el, 'piece');
                 });
             } else if (mode === 'color') {
-                updateMessage(`【色入替】1つ出目のプレイヤーを選択。`);
+                updateMessage(`【色入替】1つ目のプレイヤーを選択。`);
                 document.querySelectorAll('.player-info').forEach(el => {
                     el.classList.add('selectable');
                     el.onclick = () => selectForSwap(el, 'color');
@@ -859,9 +907,9 @@
                 selectedTargets = selectedTargets.filter(targetId => targetId !== id);
                 
                 if (mode === 'piece') {
-                    updateMessage(`【コマ入替】1つ出目のゴーストを選択。`);
+                    updateMessage(`【コマ入替】1つ目のゴーストを選択。`);
                 } else if (mode === 'color') {
-                    updateMessage(`【色入替】1つ出目のプレイヤーを選択。`);
+                    updateMessage(`【色入替】1つ目のプレイヤーを選択。`);
                 }
                 return;
             }
@@ -871,7 +919,7 @@
             selectedTargets.push(id);
 
             if (selectedTargets.length === 1) {
-                updateMessage(`2つ出目 を選択してください。（もう一度タッチでキャンセル）`);
+                updateMessage(`2つ目 を選択してください。（もう一度タッチでキャンセル）`);
             } else if (selectedTargets.length === 2) {
                 resetSelectables();
                 executeSwap(mode);
