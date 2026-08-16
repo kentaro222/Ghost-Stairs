@@ -1,973 +1,433 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ghost Stairs</title>
-    <style>
-        /* --- 画面サイズに応じた変数設定（レスポンシブ対応） --- */
-        :root {
-            --cell-min-width: 75px;
-            --cell-height: 120px;
-            --piece-size: 32px;
-            --piece-bg-w: 64px;
-            --piece-bg-h: 160px;
-            --dice-size: 48px;
-            --dice-bg-w: 240px;
-            --cell-font-size: 12px;
-            --ui-font-size: 13px;
-            --ui-icon-size: 14px;
-        }
-
-        /* タブレット向け */
-        @media (min-width: 768px) {
-            :root {
-                --cell-min-width: 100px;
-                --cell-height: 150px;
-                --piece-size: 48px;
-                --piece-bg-w: 96px;
-                --piece-bg-h: 240px;
-                --dice-size: 64px;
-                --dice-bg-w: 320px;
-                --cell-font-size: 16px;
-                --ui-font-size: 16px;
-                --ui-icon-size: 18px;
-            }
-        }
-
-        /* PC・大画面向け */
-        @media (min-width: 1024px) {
-            :root {
-                --cell-min-width: 120px;
-                --cell-height: 180px;
-                --piece-size: 64px;
-                --piece-bg-w: 128px;
-                --piece-bg-h: 320px;
-                --dice-size: 80px;
-                --dice-bg-w: 400px;
-                --cell-font-size: 20px;
-                --ui-font-size: 18px;
-                --ui-icon-size: 24px;
-            }
-        }
-
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: #000;
-            color: #fff;
-            font-family: 'Courier New', Courier, monospace;
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden; 
-            display: flex;
-            flex-direction: column;
-            user-select: none;
-        }
-
-        /* --- 上部UIエリア --- */
-        #ui-area {
-            flex: 0 0 auto;
-            background: #111;
-            padding: 10px;
-            border-bottom: 1px solid #333;
-            box-sizing: border-box;
-            z-index: 100;
-        }
-
-        /* セットアップ画面 */
-        #setup-area {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            align-items: center;
-            justify-content: center;
-            max-width: 1000px;
-            margin: 0 auto;
-        }
-        .hint { font-size: 12px; color: #aaa; text-align: center; }
-        .setup-inputs {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            align-items: center;
-            justify-content: center;
-        }
-        .p-input {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-size: var(--ui-font-size);
-        }
-        .p-input input {
-            width: calc(var(--ui-font-size) * 2.5);
-            background: #000; color: #fff;
-            border: 1px solid #fff; border-radius: 2px;
-            text-align: center; font-family: inherit;
-            font-size: var(--ui-font-size);
-            padding: 2px;
-        }
-        
-        /* ルール設定 */
-        .rule-setting {
-            display: flex; align-items: center; gap: 5px;
-            font-size: var(--ui-font-size); margin: 5px 0;
-            justify-content: center;
-        }
-        .rule-setting input { cursor: pointer; margin: 0; }
-        .rule-setting label { cursor: pointer; color: #ddd; }
-
-        /* プレイ中のUI (サイコロと右側コンテンツを分ける) */
-        #play-ui {
-            display: none;
-            flex-wrap: wrap; 
-            gap: 15px;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            max-width: 1000px;
-            margin: 0 auto;
-        }
-        
-        #play-ui-content {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            align-items: center;
-            justify-content: center;
-            flex: 0 1 auto; 
-        }
-        
-        #message {
-            flex: 0 1 auto; 
-            font-size: var(--ui-font-size);
-            color: #ffeb3b;
-            min-height: 40px;
-            display: flex; align-items: center;
-            background: rgba(255, 255, 255, 0.05);
-            padding: 5px 10px; border-radius: 4px;
-            line-height: 1.4;
-            min-width: 150px;
-        }
-
-        #player-status {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
-            flex: 0 0 auto;
-        }
-        .player-info {
-            display: flex; align-items: center;
-            padding: 4px 8px; border: 1px solid #333; border-radius: 4px;
-            font-size: var(--ui-font-size); font-weight: bold; background: #1a1a1a;
-            cursor: pointer; transition: all 0.2s;
-        }
-        .player-info.active-turn { border-color: #fff; background: #333; }
-        .player-info.selectable { border: 1px dashed #fff; animation: border-blink 1s infinite; }
-        .player-info.selected { border: 2px solid #ff3333; }
-        
-        .ui-tile { width: var(--ui-icon-size); height: var(--ui-icon-size); margin-right: 6px; border: 1px solid #fff; display: inline-block; }
-        .bg-color-0 { background-color: #ff3333; }
-        .bg-color-1 { background-color: #3333ff; }
-        .bg-color-2 { background-color: #33cc33; }
-        .bg-color-3 { background-color: #ffff33; }
-
-        #action-buttons { display: none; gap: 5px; }
-        .btn {
-            background: #000; color: #fff; border: 1px solid #fff;
-            padding: 8px 12px; cursor: pointer; font-family: inherit;
-            border-radius: 4px; font-weight: bold; font-size: var(--ui-font-size);
-            white-space: nowrap;
-        }
-        .btn:hover { background: #333; }
-
-        /* --- 画面右下の小さなリセットボタン --- */
-        #small-reset-btn {
-            display: none;
-            position: fixed;
-            bottom: 10px; right: 10px;
-            background: rgba(0, 0, 0, 0.5);
-            color: #555; border: 1px solid #444;
-            padding: 4px 8px; font-size: 10px;
-            cursor: pointer; z-index: 100; border-radius: 3px;
-            font-family: inherit;
-        }
-        #small-reset-btn:hover {
-            color: #ff5555; border-color: #ff5555; background: rgba(85, 0, 0, 0.8);
-        }
-
-        /* --- 下部ボードエリア --- */
-        #board-container {
-            flex: 1 1 auto;
-            background: #0a0a0a;
-            padding: 10px;
-            overflow-y: auto; 
-            overflow-x: hidden;
-            box-sizing: border-box;
-            position: relative; 
-        }
-
-        #board {
-            position: relative;
-            width: 100%;
-            max-width: 1200px; 
-            margin: 0 auto; 
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(var(--cell-min-width), 1fr));
-            grid-auto-rows: var(--cell-height); 
-            gap: 8px;
-            padding-bottom: 80px; 
-        }
-
-        .cell {
-            border: 1px solid #444;
-            background-color: #151515;
-            border-radius: 4px;
-            box-sizing: border-box;
-            display: flex;
-            justify-content: center;
-            font-size: var(--cell-font-size);
-            color: #777;
-            padding-top: 4px;
-        }
-
-        /* =========================================
-           スプライト画像（ドット絵）の適用とアニメーション
-           ========================================= */
-
-        .pixel-art {
-            image-rendering: -moz-crisp-edges;
-            image-rendering: -webkit-optimize-contrast;
-            image-rendering: crisp-edges;
-            image-rendering: pixelated;
-        }
-
-        /* --- サイコロ --- */
-        #dice {
-            flex: 0 0 var(--dice-size);
-            height: var(--dice-size);
-            border: 2px solid #fff; border-radius: 8px;
-            cursor: pointer; background-color: #111;
-            box-shadow: 0 2px 4px rgba(255,255,255,0.1);
-            
-            background-image: url('dice_sheet.png');
-            background-repeat: no-repeat;
-            background-size: var(--dice-bg-w) var(--dice-size); 
-            transition: border-color 0.5s, box-shadow 0.5s;
-        }
-        #dice:hover:not(.disabled) { background-color: #222; }
-        #dice.disabled { border-color: #555 !important; cursor: default; box-shadow: none !important; opacity: 0.8; animation: none !important; }
-
-        .dice-ready {
-            animation: dice-pulse 2s infinite alternate;
-        }
-        @keyframes dice-pulse {
-            0% { border-color: #fff; box-shadow: 0 0 5px rgba(255, 255, 255, 0.2); }
-            100% { border-color: #ffd700; box-shadow: 0 0 20px rgba(255, 215, 0, 0.8); }
-        }
-
-        .dice-face-1 { background-position: 0px 0px; }
-        .dice-face-2 { background-position: calc(var(--dice-size) * -1) 0px; }
-        .dice-face-3 { background-position: calc(var(--dice-size) * -2) 0px; }
-        .dice-face-4 { background-position: calc(var(--dice-size) * -3) 0px; }
-        .dice-face-g { background-position: calc(var(--dice-size) * -4) 0px; }
-
-        /* --- コマ --- */
-        .piece {
-            position: absolute;
-            width: var(--piece-size);  
-            height: var(--piece-size); 
-            background-image: url('pieces_sheet.png');
-            background-repeat: no-repeat;
-            background-size: var(--piece-bg-w) var(--piece-bg-h); 
-            
-            transition: left 0.8s ease-in-out, top 0.8s ease-in-out;
-            cursor: pointer;
-            box-sizing: border-box;
-            z-index: 10;
-        }
-        
-        .piece.selectable {
-            outline: none;
-            animation: silhouette-glow 1s infinite;
-            z-index: 20;
-        }
-        .piece.selected {
-            outline: none;
-            filter: drop-shadow(0 0 4px #ff3333) drop-shadow(0 0 4px #ff3333);
-            z-index: 25;
-        }
-
-        .piece-color-0 { background-position-y: 0px !important; }
-        .piece-color-1 { background-position-y: calc(var(--piece-size) * -1) !important; }
-        .piece-color-2 { background-position-y: calc(var(--piece-size) * -2) !important; }
-        .piece-color-3 { background-position-y: calc(var(--piece-size) * -3) !important; }
-        .piece.ghost { background-position-y: calc(var(--piece-size) * -4) !important; }
-
-        .piece.frame-1 { background-position-x: 0px; }
-        .piece.frame-2 { background-position-x: calc(var(--piece-size) * -1); }
-        
-        @keyframes silhouette-glow {
-            0%, 100% { filter: drop-shadow(0 0 4px #fff) drop-shadow(0 0 4px #fff); }
-            50% { filter: drop-shadow(0 0 1px rgba(255,255,255,0.4)); }
-        }
-
-        @keyframes border-blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        /* --- パーティクル --- */
-        .particle {
-            position: fixed;
-            border-radius: 50%;
-            pointer-events: none;
-            z-index: 2000;
-            animation: particle-anim 1s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
-        }
-        .particle.ghost-fx {
-            width: 12px; height: 12px;
-            background-color: rgba(255, 255, 255, 0.8);
-            filter: blur(2px);
-        }
-        .particle.goal-fx {
-            width: 8px; height: 8px;
-        }
-        @keyframes particle-anim {
-            0% { transform: translate(0, 0) scale(1); opacity: 1; }
-            100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
-        }
-
-        /* --- リザルト画面オーバーレイ --- */
-        #result-wait-overlay {
-            display: none;
-            position: fixed; 
-            top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 900; cursor: pointer;
-        }
-        #result-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0, 0, 0, 0.85);
-            z-index: 1000;
-            justify-content: center; align-items: center; flex-direction: column;
-        }
-        .result-box {
-            background: #111; border: 2px solid #ffd700; border-radius: 8px;
-            padding: 30px; text-align: center; min-width: 320px; /* 少し広げる */
-        }
-        .result-box h2 { color: #ffd700; margin-top: 0; }
-        .ranking-item {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 10px 8px; border-bottom: 1px solid #333; font-size: 16px;
-        }
-        .ranking-rank { font-weight: bold; width: 70px; text-align: left; white-space: nowrap; } /* 修正: 幅拡張&改行禁止 */
-        .ranking-name { flex-grow: 1; text-align: left; margin-left: 10px; }
-        .ranking-pos { color: #aaa; font-size: 14px; }
-        .result-buttons {
-            display: flex; gap: 10px; justify-content: center; margin-top: 20px;
-        }
-        .btn-reset-large { border-color: #ff5555; color: #ff5555; }
-        .btn-reset-large:hover { background: #550000; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ghost Stairs</title>
+<style>
+:root{
+  --bg:#000;--panel:#070707;--panel2:#0d0d0d;--line:#fff;--muted:#9a9a9a;
+  --accent:#fff;--danger:#ff4d4d;--gold:#ffd700;
+  --cell-min:76px;--cell-h:112px;--piece:32px;--piece-bg-w:64px;--piece-bg-h:160px;
+  --dice:48px;--dice-bg-w:240px;--text:13px;--small:11px;--icon:14px;
+}
+@media(min-width:768px){:root{--cell-min:100px;--cell-h:145px;--piece:48px;--piece-bg-w:96px;--piece-bg-h:240px;--dice:64px;--dice-bg-w:320px;--text:15px;--small:12px;--icon:18px}}
+@media(min-width:1100px){:root{--cell-min:120px;--cell-h:172px;--piece:64px;--piece-bg-w:128px;--piece-bg-h:320px;--dice:80px;--dice-bg-w:400px;--text:17px;--small:13px;--icon:22px}}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#000;color:#fff;font-family:"Courier New",monospace}
+body{min-height:100dvh;overflow:hidden;user-select:none}
+button,input{font:inherit}
+button{touch-action:manipulation}
+button:focus-visible,input:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.pixel-art{image-rendering:pixelated;image-rendering:crisp-edges}
+.app{height:100dvh;display:grid;grid-template-rows:auto 1fr;background:#000}
+.topbar{z-index:20;background:#000;border-bottom:2px solid #fff;padding:8px 10px;box-shadow:0 3px 0 #111}
+.topbar-inner{width:min(1200px,100%);margin:auto}
+.brand{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+.brand h1{font-size:clamp(16px,3vw,24px);margin:0;letter-spacing:.12em;text-transform:uppercase}
+.brand .tag{font-size:var(--small);color:#aaa;white-space:nowrap}
+.setup{display:grid;gap:10px}
+.setup-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.name-card{display:flex;align-items:center;gap:6px;border:1px solid #444;padding:5px 7px;background:#090909}
+.color-chip{width:var(--icon);height:var(--icon);border:1px solid #fff;flex:0 0 auto}
+.c0{background:#ff3333}.c1{background:#3333ff}.c2{background:#33cc33}.c3{background:#ffff33}
+.name-card input{width:3.2em;background:#000;color:#fff;border:1px solid #777;padding:5px;text-align:center;text-transform:none}
+.rule-toggle{display:flex;align-items:center;gap:8px;color:#ddd;font-size:var(--text)}
+.rule-toggle input{width:18px;height:18px;accent-color:#fff}
+.hint{font-size:var(--small);color:#aaa;line-height:1.5}
+.btn{border:2px solid #fff;background:#000;color:#fff;padding:7px 11px;cursor:pointer;font-weight:700;letter-spacing:.03em}
+.btn:hover{background:#fff;color:#000}.btn.secondary{border-color:#777;color:#bbb}.btn.secondary:hover{border-color:#fff;color:#fff;background:#111}
+.btn.danger{border-color:#ff5555;color:#ff7777}.btn.danger:hover{background:#4a0000;color:#fff}
+.play-ui{display:none;gap:10px;align-items:center}
+.turn-panel{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;width:100%}
+.dice-wrap{display:grid;justify-items:center;gap:4px}
+#dice{width:var(--dice);height:var(--dice);border:2px solid #fff;background:#111 url('dice_sheet.png') no-repeat;background-size:var(--dice-bg-w) var(--dice);cursor:pointer;box-shadow:4px 4px 0 #333}
+#dice:not(:disabled):hover{transform:translate(-1px,-1px);box-shadow:6px 6px 0 #333}
+#dice:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+#dice.ready{animation:dicePulse 1s steps(2,end) infinite}
+@keyframes dicePulse{50%{filter:invert(1)}}
+.dice-face-1{background-position:0 0}.dice-face-2{background-position:calc(var(--dice)*-1) 0}.dice-face-3{background-position:calc(var(--dice)*-2) 0}.dice-face-4{background-position:calc(var(--dice)*-3) 0}.dice-face-g{background-position:calc(var(--dice)*-4) 0}
+.dice-label{font-size:10px;color:#999}
+.message{min-height:50px;display:flex;align-items:center;border:1px solid #555;background:#080808;padding:7px 9px;font-size:var(--text);line-height:1.4;white-space:normal}
+.status{display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-end}
+.player-info{display:flex;align-items:center;gap:5px;border:1px solid #555;background:#080808;padding:5px 7px;font-size:var(--text);font-weight:bold}
+.player-info.active{border:2px solid #fff;box-shadow:3px 3px 0 #333}
+.player-info.selectable{cursor:pointer;animation:blink .8s steps(2,end) infinite}.player-info.selected{border-color:#ff5555;box-shadow:0 0 0 2px #ff5555 inset}
+@keyframes blink{50%{opacity:.35}}
+.action-row{display:none;flex-wrap:wrap;gap:6px;margin-top:8px;justify-content:center}
+.board-shell{overflow:auto;background:#030303;position:relative;padding:12px 10px 90px}
+.board{position:relative;width:min(1200px,100%);margin:auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(var(--cell-min),1fr));grid-auto-rows:var(--cell-h);gap:8px}
+.cell{border:1px solid #555;background:#080808;color:#777;display:flex;justify-content:center;padding-top:5px;font-size:var(--small);position:relative}
+.cell::before,.cell::after{content:"";position:absolute;width:5px;height:5px;border-color:#444}
+.cell::before{left:3px;top:3px;border-left:1px solid;border-top:1px solid}.cell::after{right:3px;bottom:3px;border-right:1px solid;border-bottom:1px solid}
+.cell.start{color:#fff;border-color:#888}.cell.goal{color:#ffd700;border-color:#ffd700;box-shadow:inset 0 0 0 1px #6b5b00}
+.piece{position:absolute;width:var(--piece);height:var(--piece);background:url('pieces_sheet.png') no-repeat;background-size:var(--piece-bg-w) var(--piece-bg-h);transition:left .65s steps(6,end),top .65s steps(6,end);z-index:10;border:0;padding:0;cursor:default}
+.piece.interactive{cursor:pointer}.piece.selectable{animation:pieceBlink .7s steps(2,end) infinite}.piece.selected{filter:drop-shadow(0 0 2px #ff5555) drop-shadow(0 0 4px #ff5555)}
+@keyframes pieceBlink{50%{filter:invert(1)}}
+.piece-color-0{background-position-y:0!important}.piece-color-1{background-position-y:calc(var(--piece)*-1)!important}.piece-color-2{background-position-y:calc(var(--piece)*-2)!important}.piece-color-3{background-position-y:calc(var(--piece)*-3)!important}.piece.ghost{background-position-y:calc(var(--piece)*-4)!important}
+.piece.frame-1{background-position-x:0}.piece.frame-2{background-position-x:calc(var(--piece)*-1)}
+.fab-row{position:fixed;right:10px;bottom:10px;display:flex;gap:6px;z-index:50}.fab{border:1px solid #666;background:#000;color:#aaa;padding:6px 8px;font-size:10px;cursor:pointer}.fab:hover{border-color:#fff;color:#fff}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:1000;align-items:center;justify-content:center;padding:16px;overflow:auto}
+.dialog{width:min(560px,100%);border:2px solid #fff;background:#000;box-shadow:8px 8px 0 #222;padding:18px}
+.dialog h2{margin:0 0 12px;font-size:20px}.dialog h3{margin:16px 0 6px;font-size:14px}.dialog p,.dialog li{font-size:13px;line-height:1.55;color:#ddd}.dialog ul{padding-left:1.2em}.dialog .em{color:#fff;font-weight:bold}.dialog-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:16px}
+.ranking{display:grid;gap:4px}.rank-row{display:grid;grid-template-columns:58px auto 1fr auto;gap:8px;align-items:center;border-bottom:1px solid #333;padding:8px 0}.rank{font-weight:bold}.pos{color:#aaa;font-size:12px}.winner{color:#ffd700}
+.particle{position:fixed;border-radius:50%;pointer-events:none;z-index:2000;animation:particle 1s steps(8,end) forwards}.particle.ghost-fx{width:10px;height:10px;background:#fff}.particle.goal-fx{width:7px;height:7px}
+@keyframes particle{to{transform:translate(var(--tx),var(--ty)) scale(0);opacity:0}}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(max-width:700px){
+  .brand{margin-bottom:6px}.brand .tag{display:none}.turn-panel{grid-template-columns:auto 1fr}.status{grid-column:1/-1;justify-content:flex-start}.message{min-height:44px}.topbar{padding:7px}.board-shell{padding-top:8px}.dialog{padding:14px}.rank-row{grid-template-columns:48px auto 1fr}.pos{grid-column:3}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}
+</style>
 </head>
 <body>
-
-    <div id="ui-area">
-        <div id="setup-area">
-            <div class="hint">2文字で名前を入力（未入力は中立のゴーストになります）</div>
-            <div class="setup-inputs">
-                <div class="p-input"><span class="ui-tile bg-color-0"></span><input type="text" id="p1-input" value="AA" maxlength="2"></div>
-                <div class="p-input"><span class="ui-tile bg-color-1"></span><input type="text" id="p2-input" value="BB" maxlength="2"></div>
-                <div class="p-input"><span class="ui-tile bg-color-2"></span><input type="text" id="p3-input" value="" maxlength="2"></div>
-                <div class="p-input"><span class="ui-tile bg-color-3"></span><input type="text" id="p4-input" value="" maxlength="2"></div>
-            </div>
-            <div class="rule-setting">
-                <label><input type="checkbox" id="color-swap-rule"> 「色の入れ替え」ルールあり</label>
-            </div>
-            <div>
-                <button class="btn" onclick="startGameFromInput()">Start</button>
-            </div>
+<div class="app">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand"><h1>GHOST STAIRS</h1><div class="tag">WHO ARE YOU?</div></div>
+      <section id="setup-area" class="setup" aria-label="ゲーム設定">
+        <div class="setup-row">
+          <label class="name-card"><span class="color-chip c0" aria-hidden="true"></span><span class="sr-only">赤プレイヤー名</span><input id="p1-input" value="AA" maxlength="2" aria-label="赤プレイヤー名"></label>
+          <label class="name-card"><span class="color-chip c1" aria-hidden="true"></span><span class="sr-only">青プレイヤー名</span><input id="p2-input" value="BB" maxlength="2" aria-label="青プレイヤー名"></label>
+          <label class="name-card"><span class="color-chip c2" aria-hidden="true"></span><span class="sr-only">緑プレイヤー名</span><input id="p3-input" value="" maxlength="2" aria-label="緑プレイヤー名"></label>
+          <label class="name-card"><span class="color-chip c3" aria-hidden="true"></span><span class="sr-only">黄プレイヤー名</span><input id="p4-input" value="" maxlength="2" aria-label="黄プレイヤー名"></label>
+          <button class="btn" id="start-btn" type="button">START</button>
+          <button class="btn secondary" id="rules-btn-setup" type="button">RULES</button>
         </div>
+        <label class="rule-toggle"><input type="checkbox" id="color-swap-rule">全員ゴースト時に「色の入れ替え」も選べる</label>
+        <div class="hint">2〜4人。空欄は中立ゴースト。名前は2文字まで。</div>
+      </section>
 
-        <div id="play-ui">
-            <!-- サイコロは左端に固定 -->
-            <div id="dice" class="pixel-art dice-face-1 dice-ready"></div>
-            
-            <!-- ログとプレイヤーステータスは右側のコンテナにまとめる -->
-            <div id="play-ui-content">
-                <div id="message"></div>
-                <div id="player-status"></div>
-                <div id="action-buttons">
-                    <button class="btn" onclick="startSwap('piece')">コマ入替</button>
-                    <button class="btn" onclick="startSwap('color')">色入替</button>
-                </div>
-            </div>
+      <section id="play-ui" class="play-ui" aria-label="プレイ情報">
+        <div class="turn-panel">
+          <div class="dice-wrap">
+            <button id="dice" class="pixel-art dice-face-1 ready" type="button" aria-label="サイコロを振る"></button>
+            <span class="dice-label">ROLL</span>
+          </div>
+          <div id="message" class="message" role="status" aria-live="polite"></div>
+          <div id="player-status" class="status" aria-label="プレイヤー状況"></div>
         </div>
-    </div>
-
-    <button id="small-reset-btn" onclick="resetGame()">Reset</button>
-
-    <div id="board-container">
-        <div id="board"></div>
-    </div>
-    
-    <div id="result-wait-overlay" onclick="showResult()"></div>
-
-    <div id="result-overlay">
-        <div class="result-box">
-            <h2>Game Finish!</h2>
-            <div id="ranking-list"></div>
-            <div class="result-buttons">
-                <button class="btn" onclick="rematchGame()">同じメンバーで再戦</button>
-                <button class="btn btn-reset-large" onclick="resetGame()">名前入力に戻る</button>
-            </div>
+        <div id="action-buttons" class="action-row">
+          <button class="btn" id="swap-piece-btn" type="button">コマ入替</button>
+          <button class="btn" id="swap-color-btn" type="button">色入替</button>
+          <button class="btn secondary" id="cancel-action-btn" type="button">キャンセル</button>
         </div>
+      </section>
     </div>
+  </header>
 
-    <script>
-        const TOTAL_CELLS = 23; 
-        const GOAL_POS = TOTAL_CELLS - 1;
-        const ANIMATION_TIME = 800; 
-        const SAVE_KEY = 'ghostStairs_localSave_v5'; 
-        
-        let players = [];
-        let pieces = [];
-        let turnIndex = 0;
-        let isWaitingForAction = false;
-        let swapMode = null; 
-        let selectedTargets = [];
-        let isGameOver = false;
-        let isColorSwapEnabled = false;
+  <main id="board-container" class="board-shell">
+    <div id="board" class="board" aria-label="ゲーム盤"></div>
+  </main>
+</div>
 
-        // --- 画面どこでもタッチでサイコロを振るイベントリスナー ---
-        document.addEventListener('click', function(e) {
-            if (e.target.closest('.btn') || e.target.closest('input') || 
-                e.target.closest('.player-info') || e.target.closest('.piece.selectable') || 
-                e.target.closest('#small-reset-btn') || e.target.closest('#setup-area') ||
-                e.target.closest('#result-overlay') || e.target.closest('#result-wait-overlay') ||
-                e.target.closest('.rule-setting') || e.target.closest('.piece.selected')) {
-                return;
-            }
-            
-            const playUi = document.getElementById('play-ui');
-            if (playUi.style.display !== 'none' && !isWaitingForAction && !isGameOver && swapMode === null) {
-                rollDice();
-            }
-        });
+<div class="fab-row" id="fab-row" hidden>
+  <button class="fab" id="rules-btn" type="button">RULES</button>
+  <button class="fab" id="reset-btn" type="button">RESET</button>
+</div>
 
-        setInterval(() => {
-            const isFrame1 = Math.floor(Date.now() / 300) % 2 === 0;
-            document.querySelectorAll('.piece').forEach(el => {
-                if(isFrame1) {
-                    el.classList.add('frame-1');
-                    el.classList.remove('frame-2');
-                } else {
-                    el.classList.add('frame-2');
-                    el.classList.remove('frame-1');
-                }
-            });
-        }, 50);
+<div id="rules-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="rules-title">
+  <div class="dialog">
+    <h2 id="rules-title">RULES</h2>
+    <p class="em">一番楽しいところ：途中から「どのコマが誰のものか」が分からなくなる。</p>
+    <ul>
+      <li>自分の番にサイコロを振る。数字なら、その時点で自分のコマが見えていればそのコマが進む。</li>
+      <li>ゴーストの目が出たら、まだ見えているコマを1つゴースト化する。</li>
+      <li>自分のコマがすでにゴーストなら、数字の目では好きなゴーストを1つ選んで進める。どれが自分だったかは表示されない。</li>
+      <li>全コマがゴーストのときにゴーストの目が出たら、ゴースト2体の位置を入れ替える。</li>
+      <li>「色の入れ替え」ルールをONにしている場合は、その場面でプレイヤー同士の色（＝どのコマがその人の勝利になるか）を入れ替えることもできる。</li>
+      <li>どれか1体がGOALに着いたら即終了。正体を公開し、そのコマを所有しているプレイヤーが勝者。</li>
+    </ul>
+    <p>つまり、<span class="em">「自分がゴールした！」と思ったのに別人のコマだった</span>、という事故が仕様です。</p>
+    <div class="dialog-actions"><button class="btn" id="close-rules-btn" type="button">OK</button></div>
+  </div>
+</div>
 
-        window.onload = () => {
-            createBoardCells();
-            if (loadState()) {
-                resumeGame();
-            } else {
-                document.getElementById('setup-area').style.display = 'flex';
-                document.getElementById('play-ui').style.display = 'none';
-                document.getElementById('small-reset-btn').style.display = 'none';
-            }
-        };
+<div id="result-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="result-title">
+  <div class="dialog">
+    <h2 id="result-title">GAME FINISH</h2>
+    <div id="ranking-list" class="ranking"></div>
+    <p class="hint">2位以下は終了時点の位置順です。</p>
+    <div class="dialog-actions">
+      <button class="btn" id="rematch-btn" type="button">RE-MATCH</button>
+      <button class="btn danger" id="back-setup-btn" type="button">SETUP</button>
+    </div>
+  </div>
+</div>
 
-        function spawnParticles(x, y, type) {
-            const count = type === 'goal-fx' ? 60 : 15;
-            const colors = ['#ff3333', '#3333ff', '#33cc33', '#ffff33', '#ffffff'];
-            
-            for(let i=0; i<count; i++) {
-                const p = document.createElement('div');
-                p.className = `particle ${type}`;
-                p.style.left = x + 'px';
-                p.style.top = y + 'px';
-                
-                if(type === 'goal-fx') {
-                    p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-                }
+<script>
+const TOTAL_CELLS=23;
+const GOAL_POS=TOTAL_CELLS-1;
+const ANIMATION_TIME=650;
+const SAVE_KEY='ghostStairs_localSave_v6';
 
-                const angle = Math.random() * Math.PI * 2;
-                const speed = type === 'goal-fx' ? (Math.random() * 150 + 50) : (Math.random() * 60 + 20);
-                const tx = Math.cos(angle) * speed;
-                let ty = Math.sin(angle) * speed;
-                
-                if (type === 'ghost-fx') ty -= 40;
+let players=[];
+let pieces=[];
+let turnIndex=0;
+let isColorSwapEnabled=false;
+let phase='setup';
+let selectedTargets=[];
+let pendingNumber=null;
+let animationLock=false;
+let resizeTimer=null;
 
-                p.style.setProperty('--tx', tx + 'px');
-                p.style.setProperty('--ty', ty + 'px');
-                
-                document.body.appendChild(p);
-                
-                setTimeout(() => p.remove(), 1000);
-            }
-        }
+const $=id=>document.getElementById(id);
 
-        function saveState() {
-            if (isGameOver) return; 
-            const state = { players, pieces, turnIndex, isColorSwapEnabled };
-            localStorage.setItem(SAVE_KEY, JSON.stringify(state));
-        }
+window.addEventListener('DOMContentLoaded',()=>{
+  bindStaticEvents();
+  createBoardCells();
+  if(loadState()) resumeGame(); else showSetup();
+});
 
-        function loadState() {
-            const saved = localStorage.getItem(SAVE_KEY);
-            if (!saved) return false;
-            try {
-                const state = JSON.parse(saved);
-                players = state.players;
-                pieces = state.pieces;
-                turnIndex = state.turnIndex;
-                isColorSwapEnabled = state.isColorSwapEnabled !== undefined ? state.isColorSwapEnabled : false;
-                return true;
-            } catch (e) {
-                return false;
-            }
-        }
+function bindStaticEvents(){
+  $('start-btn').addEventListener('click',startGameFromInput);
+  $('dice').addEventListener('click',rollDice);
+  $('rules-btn').addEventListener('click',showRules);
+  $('rules-btn-setup').addEventListener('click',showRules);
+  $('close-rules-btn').addEventListener('click',hideRules);
+  $('rules-overlay').addEventListener('click',e=>{if(e.target===$('rules-overlay'))hideRules()});
+  $('reset-btn').addEventListener('click',()=>{if(confirm('ゲームをリセットして名前入力に戻りますか？'))resetGame()});
+  $('swap-piece-btn').addEventListener('click',()=>startSwap('piece'));
+  $('swap-color-btn').addEventListener('click',()=>startSwap('color'));
+  $('cancel-action-btn').addEventListener('click',restorePhaseInteraction);
+  $('rematch-btn').addEventListener('click',rematchGame);
+  $('back-setup-btn').addEventListener('click',resetGame);
+  window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(renderPieces,120)});
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape' && $('rules-overlay').style.display==='flex') hideRules();
+    if((e.key===' '||e.key==='Enter') && phase==='ready' && document.activeElement===document.body){e.preventDefault();rollDice()}
+  });
+  setInterval(()=>{
+    const frame=Math.floor(Date.now()/300)%2===0?'frame-1':'frame-2';
+    document.querySelectorAll('.piece').forEach(el=>{el.classList.toggle('frame-1',frame==='frame-1');el.classList.toggle('frame-2',frame==='frame-2')});
+  },300);
+}
 
-        function clearSave() {
-            localStorage.removeItem(SAVE_KEY);
-        }
+function showSetup(){
+  phase='setup';
+  $('setup-area').style.display='grid';
+  $('play-ui').style.display='none';
+  $('fab-row').hidden=true;
+  $('result-overlay').style.display='none';
+  $('board').querySelectorAll('.piece').forEach(el=>el.remove());
+}
+function showRules(){$('rules-overlay').style.display='flex';$('close-rules-btn').focus()}
+function hideRules(){$('rules-overlay').style.display='none'}
 
-        function startGameFromInput() {
-            const inputs = [
-                document.getElementById('p1-input'),
-                document.getElementById('p2-input'),
-                document.getElementById('p3-input'),
-                document.getElementById('p4-input')
-            ];
-            
-            let humanCount = 0;
-            players = []; pieces = [];
+function createBoardCells(){
+  const board=$('board');board.innerHTML='';
+  for(let i=0;i<TOTAL_CELLS;i++){
+    const cell=document.createElement('div');cell.className='cell';cell.id=`cell-${i}`;
+    cell.textContent=i===0?'START':i===GOAL_POS?'GOAL':String(i);
+    if(i===0)cell.classList.add('start');if(i===GOAL_POS)cell.classList.add('goal');
+    board.appendChild(cell);
+  }
+}
 
-            inputs.forEach((input, index) => {
-                const name = input.value.trim();
-                const isHuman = name.length > 0;
-                if(isHuman) humanCount++;
-                const pName = isHuman ? name : '中立';
-                
-                players.push({ id: index, name: pName, isHuman: isHuman, colorId: index });
-                pieces.push({ id: index, pos: 0, isGhost: !isHuman, currentSlot: -1 });
-            });
+function startGameFromInput(){
+  const inputs=[$('p1-input'),$('p2-input'),$('p3-input'),$('p4-input')];
+  players=[];pieces=[];let humanCount=0;
+  inputs.forEach((input,index)=>{
+    const raw=input.value.trim();const isHuman=raw.length>0;if(isHuman)humanCount++;
+    players.push({id:index,name:isHuman?raw:'中立',isHuman,colorId:index});
+    pieces.push({id:index,pos:0,isGhost:!isHuman,currentSlot:-1});
+  });
+  if(humanCount<2){alert('少なくとも2人は名前を入力してください。');return}
+  isColorSwapEnabled=$('color-swap-rule').checked;
+  chooseRandomHumanTurn();
+  phase='ready';selectedTargets=[];pendingNumber=null;animationLock=false;
+  initPlayUI();saveState();
+}
 
-            if(humanCount < 2) {
-                alert("少なくとも2人は名前を入力してください。");
-                return;
-            }
+function chooseRandomHumanTurn(){const ids=players.filter(p=>p.isHuman).map(p=>p.id);turnIndex=ids[Math.floor(Math.random()*ids.length)]}
 
-            isColorSwapEnabled = document.getElementById('color-swap-rule').checked;
+function initPlayUI(){
+  $('setup-area').style.display='none';$('play-ui').style.display='grid';$('fab-row').hidden=false;$('result-overlay').style.display='none';
+  buildPlayerStatus();buildPieces();setTimeout(()=>{renderPieces();restorePhaseInteraction()},50);
+}
+function buildPlayerStatus(){
+  const area=$('player-status');area.innerHTML='';
+  players.forEach(p=>{
+    const el=document.createElement('button');el.type='button';el.className='player-info';el.id=`p-info-${p.id}`;el.disabled=true;
+    const chip=document.createElement('span');chip.className=`color-chip c${p.colorId}`;chip.id=`tile-${p.id}`;chip.setAttribute('aria-hidden','true');
+    const name=document.createElement('span');name.textContent=p.name;
+    el.append(chip,name);area.appendChild(el);
+  });
+}
+function buildPieces(){
+  document.querySelectorAll('.piece').forEach(el=>el.remove());
+  pieces.forEach(p=>{
+    const el=document.createElement('button');el.type='button';el.id=`piece-${p.id}`;el.className=`piece pixel-art piece-color-${p.id} frame-1${p.isGhost?' ghost':''}`;
+    el.setAttribute('aria-label',p.isGhost?'ゴースト':'コマ');el.disabled=true;$('board').appendChild(el);
+  });
+}
 
-            const humanIndices = players.filter(p => p.isHuman).map(p => p.id);
-            turnIndex = humanIndices[Math.floor(Math.random() * humanIndices.length)];
-            
-            isGameOver = false;
-            initUI();
-        }
+function saveState(){
+  if(phase==='setup'||phase==='gameover')return;
+  localStorage.setItem(SAVE_KEY,JSON.stringify({players,pieces,turnIndex,isColorSwapEnabled,phase,selectedTargets,pendingNumber}));
+}
+function loadState(){
+  const raw=localStorage.getItem(SAVE_KEY);if(!raw)return false;
+  try{
+    const s=JSON.parse(raw);
+    if(!Array.isArray(s.players)||!Array.isArray(s.pieces))return false;
+    players=s.players;pieces=s.pieces;turnIndex=s.turnIndex;isColorSwapEnabled=!!s.isColorSwapEnabled;
+    phase=['ready','chooseGhostMove','chooseGhostify','chooseSwapMode','swapPiece','swapColor','resolving'].includes(s.phase)?s.phase:'ready';
+    selectedTargets=Array.isArray(s.selectedTargets)?s.selectedTargets:[];pendingNumber=Number.isFinite(s.pendingNumber)?s.pendingNumber:null;
+    animationLock=false;return true;
+  }catch{return false}
+}
+function clearSave(){localStorage.removeItem(SAVE_KEY)}
+function resumeGame(){
+  initPlayUI();
+  if(phase==='resolving'){
+    setTimeout(()=>{
+      if(pieces.some(p=>p.pos===GOAL_POS)) triggerGameOver();
+      else nextTurn();
+    },120);
+  }
+}
 
-        function resumeGame() {
-            isGameOver = false;
-            initUI();
-        }
+function resetGame(){clearSave();players=[];pieces=[];selectedTargets=[];pendingNumber=null;animationLock=false;phase='setup';$('color-swap-rule').checked=false;createBoardCells();showSetup()}
+function rematchGame(){
+  pieces.forEach(p=>{p.pos=0;p.currentSlot=-1;p.isGhost=!players.find(x=>x.id===p.id).isHuman});
+  chooseRandomHumanTurn();phase='ready';selectedTargets=[];pendingNumber=null;animationLock=false;initPlayUI();saveState();
+}
 
-        function rematchGame() {
-            pieces.forEach(p => {
-                p.pos = 0;
-                p.currentSlot = -1;
-                p.isGhost = !players.find(player => player.id === p.id).isHuman;
-            });
-            
-            const humanIndices = players.filter(p => p.isHuman).map(p => p.id);
-            turnIndex = humanIndices[Math.floor(Math.random() * humanIndices.length)];
-            
-            isGameOver = false;
-            document.getElementById('result-overlay').style.display = 'none';
-            document.getElementById('result-wait-overlay').style.display = 'none';
-            initUI();
-        }
+function updateMessage(text){$('message').textContent=text}
+function setDiceReady(ready){const d=$('dice');d.disabled=!ready;d.classList.toggle('ready',ready)}
+function updateTurnHighlight(){document.querySelectorAll('.player-info').forEach(el=>el.classList.remove('active'));const el=$(`p-info-${turnIndex}`);if(el)el.classList.add('active')}
+function hideActions(){$('action-buttons').style.display='none'}
+function showActions(){$('action-buttons').style.display='flex'}
 
-        function resetGame() {
-            clearSave();
-            document.getElementById('result-overlay').style.display = 'none';
-            document.getElementById('result-wait-overlay').style.display = 'none';
-            document.getElementById('setup-area').style.display = 'flex';
-            document.getElementById('play-ui').style.display = 'none';
-            document.getElementById('small-reset-btn').style.display = 'none';
-            document.getElementById('player-status').innerHTML = '';
-            document.getElementById('board').innerHTML = '';
-            
-            document.getElementById('color-swap-rule').checked = false;
-            
-            players = []; pieces = [];
-            createBoardCells();
-        }
+function restorePhaseInteraction(){
+  clearInteractives();hideActions();updateTurnHighlight();
+  if(phase==='ready'){
+    setDiceReady(true);updateMessage(`【${players[turnIndex].name} のターン】 サイコロを振ってください。`);saveState();return;
+  }
+  setDiceReady(false);
+  if(phase==='chooseGhostMove'){updateMessage(`${pendingNumber}マス進めるゴーストを選んでください。`);setPieceChoices(p=>p.isGhost,id=>finishGhostMove(id));}
+  else if(phase==='chooseGhostify'){updateMessage('ゴースト化するコマを選んでください。');setPieceChoices(p=>!p.isGhost,id=>finishGhostify(id));}
+  else if(phase==='chooseSwapMode'){updateMessage('全員ゴースト。入れ替え方法を選んでください。');showActions();$('cancel-action-btn').style.display='none';}
+  else if(phase==='swapPiece'){updateMessage(selectedTargets.length?'2つ目のゴーストを選択（選び直し可）。':'入れ替える1つ目のゴーストを選択。');setPieceChoices(p=>p.isGhost,id=>selectSwapTarget(id,'piece'));}
+  else if(phase==='swapColor'){updateMessage(selectedTargets.length?'2人目を選択（選び直し可）。':'色を入れ替える1人目を選択。');setPlayerChoices(id=>selectSwapTarget(id,'color'));}
+  saveState();
+}
 
-        function initUI() {
-            document.getElementById('setup-area').style.display = 'none';
-            document.getElementById('play-ui').style.display = 'flex';
-            document.getElementById('small-reset-btn').style.display = 'block'; 
-            
-            const statusArea = document.getElementById('player-status');
-            statusArea.innerHTML = '';
-            players.forEach(p => {
-                const pInfo = document.createElement('div');
-                pInfo.className = 'player-info';
-                pInfo.id = `p-info-${p.id}`;
-                pInfo.innerHTML = `<div class="ui-tile bg-color-${p.colorId}" id="tile-${p.id}"></div><div class="player-name">${p.name}</div>`;
-                statusArea.appendChild(pInfo);
-            });
+function clearInteractives(){
+  document.querySelectorAll('.piece').forEach(el=>{el.classList.remove('interactive','selectable','selected');el.disabled=true;el.onclick=null});
+  document.querySelectorAll('.player-info').forEach(el=>{el.classList.remove('selectable','selected');el.disabled=true;el.onclick=null});
+}
+function setPieceChoices(predicate,handler){
+  pieces.filter(predicate).forEach(p=>{
+    const el=$(`piece-${p.id}`);if(!el)return;el.disabled=false;el.classList.add('interactive','selectable');
+    if(selectedTargets.includes(p.id))el.classList.add('selected');
+    el.onclick=()=>handler(p.id);
+  });
+}
+function setPlayerChoices(handler){
+  players.forEach(p=>{
+    const el=$(`p-info-${p.id}`);el.disabled=false;el.classList.add('selectable');if(selectedTargets.includes(p.id))el.classList.add('selected');el.onclick=()=>handler(p.id);
+  });
+}
 
-            const board = document.getElementById('board');
-            document.querySelectorAll('.piece').forEach(el => el.remove()); 
-            pieces.forEach(p => {
-                const pieceEl = document.createElement('div');
-                pieceEl.className = `piece pixel-art piece-color-${p.id} ${p.isGhost ? 'ghost' : ''}`;
-                pieceEl.id = `piece-${p.id}`;
-                board.appendChild(pieceEl);
-            });
+function rollDice(){
+  if(phase!=='ready'||animationLock)return;
+  animationLock=true;setDiceReady(false);clearInteractives();hideActions();
+  let count=0;const faces=[1,2,3,4,'g'];
+  const timer=setInterval(()=>{
+    const face=faces[Math.floor(Math.random()*faces.length)];setDiceFace(face);count++;
+    if(count>=10){clearInterval(timer);const finalFaces=[1,2,3,4,'g','g'];const result=finalFaces[Math.floor(Math.random()*finalFaces.length)];setDiceFace(result);animationLock=false;result==='g'?handleGhostRoll():handleNumberRoll(result)}
+  },60);
+}
+function setDiceFace(face){$('dice').className=`pixel-art dice-face-${face}`}
 
-            setTimeout(() => {
-                renderPieces();
-                updateTurnUI();
-            }, 100);
+function handleNumberRoll(num){
+  const own=pieces.find(p=>p.id===turnIndex);
+  if(!own.isGhost){updateMessage(`${players[turnIndex].name} が ${num} マス進みます。`);movePiece(own,num);return}
+  pendingNumber=num;phase='chooseGhostMove';selectedTargets=[];restorePhaseInteraction();
+}
+function finishGhostMove(id){const target=pieces.find(p=>p.id===id);movePiece(target,pendingNumber);pendingNumber=null}
+function movePiece(piece,num){
+  clearInteractives();piece.currentSlot=-1;piece.pos=Math.min(piece.pos+num,GOAL_POS);phase='resolving';renderPieces();saveState();
+  if(piece.pos===GOAL_POS)setTimeout(triggerGameOver,ANIMATION_TIME);else setTimeout(nextTurn,ANIMATION_TIME);
+}
 
-            window.addEventListener('resize', () => {
-                setTimeout(renderPieces, 200); 
-            });
-        }
+function handleGhostRoll(){
+  const visible=pieces.filter(p=>!p.isGhost);
+  if(visible.length){phase='chooseGhostify';selectedTargets=[];restorePhaseInteraction();return}
+  if(isColorSwapEnabled){phase='chooseSwapMode';selectedTargets=[];restorePhaseInteraction()}else startSwap('piece');
+}
+function finishGhostify(id){
+  const p=pieces.find(x=>x.id===id);p.isGhost=true;phase='resolving';const el=$(`piece-${id}`);el.classList.add('ghost');clearInteractives();
+  const r=el.getBoundingClientRect();spawnParticles(r.left+r.width/2,r.top+r.height/2,'ghost-fx');updateMessage('ゴースト化しました。');saveState();setTimeout(nextTurn,900);
+}
 
-        function createBoardCells() {
-            const board = document.getElementById('board');
-            board.innerHTML = '';
-            for (let i = 0; i < TOTAL_CELLS; i++) {
-                const cell = document.createElement('div');
-                cell.className = 'cell';
-                cell.id = `cell-${i}`;
-                cell.innerText = i === 0 ? 'S' : (i === GOAL_POS ? 'GOAL' : i);
-                if (i === GOAL_POS) cell.style.color = '#ffd700'; 
-                board.appendChild(cell);
-            }
-        }
+function startSwap(mode){
+  $('cancel-action-btn').style.display='inline-block';selectedTargets=[];phase=mode==='piece'?'swapPiece':'swapColor';restorePhaseInteraction();
+}
+function selectSwapTarget(id,mode){
+  if(selectedTargets.includes(id)){selectedTargets=selectedTargets.filter(x=>x!==id);restorePhaseInteraction();return}
+  selectedTargets.push(id);
+  if(selectedTargets.length<2){restorePhaseInteraction();return}
+  executeSwap(mode);
+}
+function executeSwap(mode){
+  const [a,b]=selectedTargets;clearInteractives();hideActions();
+  if(mode==='piece'){
+    const p1=pieces.find(p=>p.id===a),p2=pieces.find(p=>p.id===b);[p1.pos,p2.pos]=[p2.pos,p1.pos];[p1.currentSlot,p2.currentSlot]=[p2.currentSlot,p1.currentSlot];renderPieces();updateMessage('ゴーストの位置が入れ替わりました。');
+  }else{
+    const p1=players.find(p=>p.id===a),p2=players.find(p=>p.id===b);[p1.colorId,p2.colorId]=[p2.colorId,p1.colorId];
+    $('tile-'+a).className=`color-chip c${p1.colorId}`;$('tile-'+b).className=`color-chip c${p2.colorId}`;updateMessage('プレイヤーの色が入れ替わりました。');
+  }
+  selectedTargets=[];phase='resolving';saveState();setTimeout(nextTurn,ANIMATION_TIME);
+}
 
-        function renderPieces() {
-            let cellOccupants = {};
-            for (let i = 0; i < TOTAL_CELLS; i++) {
-                cellOccupants[i] = { pieces: [], usedSlots: [false, false, false, false] };
-            }
+function nextTurn(){
+  do{turnIndex=(turnIndex+1)%players.length}while(!players[turnIndex].isHuman);
+  phase='ready';selectedTargets=[];pendingNumber=null;animationLock=false;restorePhaseInteraction();
+}
 
-            pieces.forEach(p => cellOccupants[p.pos].pieces.push(p));
-            const boardRect = document.getElementById('board').getBoundingClientRect();
+function triggerGameOver(){
+  phase='gameover';clearSave();setDiceReady(false);clearInteractives();hideActions();pieces.forEach(p=>p.isGhost=false);renderPieces();
+  const goal=pieces.find(p=>p.pos===GOAL_POS);const owner=goal?players.find(p=>p.colorId===goal.id):null;
+  updateMessage(owner?`${owner.name} のコマがGOAL！ 正体を公開します。`:'GOAL！ 正体を公開します。');
+  spawnParticles(innerWidth/2,innerHeight/2,'goal-fx');setTimeout(showResult,650);
+}
+function showResult(){
+  const ranking=[...pieces].sort((a,b)=>b.pos-a.pos);const list=$('ranking-list');list.innerHTML='';
+  ranking.forEach((piece,index)=>{
+    const owner=players.find(p=>p.colorId===piece.id);const row=document.createElement('div');row.className='rank-row';
+    const r=document.createElement('div');r.className='rank'+(index===0?' winner':'');r.textContent=['1ST','2ND','3RD','4TH'][index]||`${index+1}TH`;
+    const chip=document.createElement('span');chip.className=`color-chip c${piece.id}`;
+    const name=document.createElement('div');name.textContent=owner?owner.name:'?';
+    const pos=document.createElement('div');pos.className='pos';pos.textContent=piece.pos===GOAL_POS?'GOAL':`${piece.pos}マス`;
+    row.append(r,chip,name,pos);list.appendChild(row);
+  });
+  $('result-overlay').style.display='flex';$('rematch-btn').focus();
+}
 
-            for (let cellId in cellOccupants) {
-                let cellData = cellOccupants[cellId];
-                if (cellData.pieces.length === 0) continue;
+function renderPieces(){
+  if(!pieces.length)return;const occupancy={};for(let i=0;i<TOTAL_CELLS;i++)occupancy[i]={pieces:[],used:[false,false,false,false]};
+  pieces.forEach(p=>occupancy[p.pos].pieces.push(p));const boardRect=$('board').getBoundingClientRect();
+  Object.keys(occupancy).forEach(id=>{
+    const data=occupancy[id];if(!data.pieces.length)return;const cell=$(`cell-${id}`);if(!cell)return;const rect=cell.getBoundingClientRect();
+    data.pieces.forEach(p=>{if(p.currentSlot>=0&&p.currentSlot<4&&!data.used[p.currentSlot])data.used[p.currentSlot]=true;else p.currentSlot=-1});
+    data.pieces.forEach(p=>{
+      if(p.currentSlot<0){const avail=[0,1,2,3].filter(i=>!data.used[i]);p.currentSlot=avail.length?avail[Math.floor(Math.random()*avail.length)]:0;data.used[p.currentSlot]=true}
+      const el=$(`piece-${p.id}`);if(!el)return;el.classList.toggle('ghost',p.isGhost);el.setAttribute('aria-label',p.isGhost?'ゴースト':'コマ');
+      const size=el.offsetWidth;const cellLeft=rect.left-boardRect.left;const cellTop=cell.offsetTop;const startY=rect.height*.16;const slotH=Math.max(0,(rect.height-startY-size)/3);
+      el.style.left=`${cellLeft+(rect.width-size)/2}px`;el.style.top=`${cellTop+startY+p.currentSlot*slotH}px`;
+    });
+  });
+}
 
-                const cellEl = document.getElementById(`cell-${cellId}`);
-                if (!cellEl) continue;
-
-                const cellRect = cellEl.getBoundingClientRect();
-                const cellLeft = cellRect.left - boardRect.left;
-                const cellTop = cellEl.offsetTop; 
-                const cellWidth = cellRect.width;
-                const cellHeight = cellRect.height;
-
-                cellData.pieces.forEach(p => {
-                    if (p.currentSlot !== -1 && p.currentSlot < 4) {
-                        if (cellData.usedSlots[p.currentSlot]) p.currentSlot = -1;
-                        else cellData.usedSlots[p.currentSlot] = true;
-                    }
-                });
-
-                cellData.pieces.forEach(p => {
-                    if (p.currentSlot === -1) {
-                        let availableSlots = [];
-                        for(let i=0; i<4; i++) if(!cellData.usedSlots[i]) availableSlots.push(i);
-                        
-                        if(availableSlots.length > 0) {
-                            p.currentSlot = availableSlots[Math.floor(Math.random() * availableSlots.length)];
-                            cellData.usedSlots[p.currentSlot] = true;
-                        } else p.currentSlot = 0; 
-                    }
-
-                    const pieceEl = document.getElementById(`piece-${p.id}`);
-                    if (p.isGhost) pieceEl.classList.add('ghost');
-                    else pieceEl.classList.remove('ghost');
-
-                    const pieceSize = pieceEl.offsetWidth; // DOMから実際のサイズを取得
-                    const startY = cellHeight * 0.15; // マス上部の数字用余白（高さの15%）
-                    const slotHeight = (cellHeight - startY - pieceSize) / 3; 
-
-                    pieceEl.style.left = `${cellLeft + (cellWidth - pieceSize) / 2}px`;
-                    pieceEl.style.top = `${cellTop + startY + (p.currentSlot * slotHeight)}px`;
-                });
-            }
-        }
-
-        function updateMessage(msg) {
-            document.getElementById('message').innerHTML = msg.replace(/\n/g, '<br>');
-        }
-
-        function updateTurnUI() {
-            if(isGameOver) return;
-            saveState(); 
-            document.querySelectorAll('.player-info').forEach(el => el.classList.remove('active-turn'));
-            document.getElementById(`p-info-${turnIndex}`).classList.add('active-turn');
-            
-            const dice = document.getElementById('dice');
-            dice.classList.remove('disabled');
-            dice.classList.add('dice-ready'); 
-            
-            updateMessage(`【${players[turnIndex].name} のターン】\nサイコロを振ってください。`);
-            isWaitingForAction = false;
-            swapMode = null;
-            selectedTargets = [];
-        }
-
-        function rollDice() {
-            if(isWaitingForAction || isGameOver) return;
-
-            const dice = document.getElementById('dice');
-            dice.classList.add('disabled');
-            dice.classList.remove('dice-ready'); 
-            isWaitingForAction = true;
-
-            document.getElementById('action-buttons').style.display = 'none';
-            resetSelectables();
-
-            let rollCount = 0;
-            const maxRolls = 10;
-            const faces = [1, 2, 3, 4, 'g'];
-            
-            const rollInterval = setInterval(() => {
-                const randomFace = faces[Math.floor(Math.random() * faces.length)];
-                dice.className = `pixel-art disabled dice-face-${randomFace}`;
-                rollCount++;
-                
-                if (rollCount >= maxRolls) {
-                    clearInterval(rollInterval);
-                    const resultFaces = [1, 2, 3, 4, 'g', 'g'];
-                    const finalResult = resultFaces[Math.floor(Math.random() * resultFaces.length)];
-                    dice.className = `pixel-art disabled dice-face-${finalResult}`;
-                    
-                    if (finalResult === 'g') handleGhostRoll();
-                    else handleNumberRoll(finalResult);
-                }
-            }, 60);
-        }
-
-        function handleNumberRoll(num) {
-            const myPiece = pieces.find(p => p.id === turnIndex); 
-
-            if (!myPiece.isGhost) {
-                updateMessage(`${players[turnIndex].name} が ${num} 進みます。`);
-                myPiece.currentSlot = -1;
-                myPiece.pos = Math.min(myPiece.pos + num, GOAL_POS);
-                
-                renderPieces();
-                checkGoalAndNext(myPiece.pos);
-            } else {
-                updateMessage(`動かしたいゴーストを ${num} 進めます。選択してください。`);
-                document.querySelectorAll('.piece.ghost').forEach(el => {
-                    el.classList.add('selectable');
-                    el.onclick = () => {
-                        const targetPiece = pieces.find(p => p.id === parseInt(el.id.split('-')[1]));
-                        targetPiece.currentSlot = -1;
-                        targetPiece.pos = Math.min(targetPiece.pos + num, GOAL_POS);
-                        
-                        resetSelectables();
-                        renderPieces();
-                        updateMessage(`ゴーストが移動しました！`);
-                        checkGoalAndNext(targetPiece.pos);
-                    };
-                });
-            }
-        }
-
-        function checkGoalAndNext(pos) {
-            if (pos === GOAL_POS) {
-                setTimeout(triggerGameOver, ANIMATION_TIME);
-            } else {
-                setTimeout(nextTurn, ANIMATION_TIME);
-            }
-        }
-
-        function triggerGameOver() {
-            isGameOver = true;
-            clearSave(); 
-            
-            const goalPiece = pieces.find(p => p.pos === GOAL_POS);
-            if (goalPiece && !goalPiece.isGhost) {
-                const owner = players.find(p => p.colorId === goalPiece.id);
-                updateMessage(`${owner.name} がゴールしました！\n（画面をタッチして結果発表へ）`);
-            } else {
-                updateMessage(`誰かがゴールしました！正体を明かします！\n（画面をタッチして結果発表へ）`);
-            }
-
-            pieces.forEach(p => p.isGhost = false);
-            renderPieces();
-            
-            spawnParticles(window.innerWidth / 2, window.innerHeight / 2, 'goal-fx');
-
-            document.getElementById('result-wait-overlay').style.display = 'block';
-        }
-
-        function showResult() {
-            document.getElementById('result-wait-overlay').style.display = 'none';
-            
-            const ranking = [...pieces].sort((a, b) => b.pos - a.pos);
-            
-            const listEl = document.getElementById('ranking-list');
-            listEl.innerHTML = '';
-
-            ranking.forEach((piece, index) => {
-                const owner = players.find(p => p.colorId === piece.id);
-                
-                const item = document.createElement('div');
-                item.className = 'ranking-item';
-                
-                let rankText = `${index + 1}位`;
-                if(index === 0) rankText = `<span style="color:#ffd700">🥇 1位</span>`;
-                
-                // 修正：NPCの名前は「中立」のみにし、幅を広げて改行を防ぐ
-                item.innerHTML = `
-                    <div class="ranking-rank">${rankText}</div>
-                    <div class="ui-tile bg-color-${piece.id}"></div>
-                    <div class="ranking-name">${owner.name}</div>
-                    <div class="ranking-pos">${piece.pos === GOAL_POS ? 'GOAL' : piece.pos + 'マス'}</div>
-                `;
-                listEl.appendChild(item);
-            });
-
-            document.getElementById('result-overlay').style.display = 'flex';
-        }
-
-        function handleGhostRoll() {
-            const unghosted = pieces.filter(p => !p.isGhost);
-            if (unghosted.length > 0) {
-                updateMessage(`【ゴーストの出目】ゴーストでないコマを選択してください。`);
-                document.querySelectorAll('.piece:not(.ghost)').forEach(el => {
-                    el.classList.add('selectable');
-                    el.onclick = () => {
-                        const targetId = parseInt(el.id.split('-')[1]);
-                        pieces.find(p => p.id === targetId).isGhost = true;
-                        
-                        resetSelectables();
-                        renderPieces(); 
-                        
-                        const rect = el.getBoundingClientRect();
-                        spawnParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, 'ghost-fx');
-
-                        updateMessage(`ゴースト化しました！`);
-                        setTimeout(nextTurn, 1500); 
-                    };
-                });
-            } else {
-                if (isColorSwapEnabled) {
-                    updateMessage(`【ゴーストの出目】入れ替えを選択してください。`);
-                    document.getElementById('action-buttons').style.display = 'flex';
-                } else {
-                    startSwap('piece');
-                }
-            }
-        }
-
-        function startSwap(mode) {
-            document.getElementById('action-buttons').style.display = 'none';
-            swapMode = mode;
-            selectedTargets = [];
-
-            if (mode === 'piece') {
-                updateMessage(`【コマ入替】1つ目のゴーストを選択。`);
-                document.querySelectorAll('.piece.ghost').forEach(el => {
-                    el.classList.add('selectable');
-                    el.onclick = () => selectForSwap(el, 'piece');
-                });
-            } else if (mode === 'color') {
-                updateMessage(`【色入替】1つ目のプレイヤーを選択。`);
-                document.querySelectorAll('.player-info').forEach(el => {
-                    el.classList.add('selectable');
-                    el.onclick = () => selectForSwap(el, 'color');
-                });
-            }
-        }
-
-        function selectForSwap(el, mode) {
-            const id = parseInt(el.id.split('-')[2] || el.id.split('-')[1]);
-
-            if(el.classList.contains('selected')) {
-                el.classList.remove('selected');
-                el.classList.add('selectable');
-                
-                selectedTargets = selectedTargets.filter(targetId => targetId !== id);
-                
-                if (mode === 'piece') {
-                    updateMessage(`【コマ入替】1つ目のゴーストを選択。`);
-                } else if (mode === 'color') {
-                    updateMessage(`【色入替】1つ目のプレイヤーを選択。`);
-                }
-                return;
-            }
-
-            el.classList.remove('selectable');
-            el.classList.add('selected');
-            selectedTargets.push(id);
-
-            if (selectedTargets.length === 1) {
-                updateMessage(`2つ目 を選択してください。（もう一度タッチでキャンセル）`);
-            } else if (selectedTargets.length === 2) {
-                resetSelectables();
-                executeSwap(mode);
-            }
-        }
-
-        function executeSwap(mode) {
-            const [id1, id2] = selectedTargets;
-
-            if (mode === 'piece') {
-                const p1 = pieces.find(p => p.id === id1);
-                const p2 = pieces.find(p => p.id === id2);
-                
-                [p1.pos, p2.pos] = [p2.pos, p1.pos];
-                [p1.currentSlot, p2.currentSlot] = [p2.currentSlot, p1.currentSlot];
-                
-                updateMessage(`場所が入れ替わりました！`);
-                renderPieces(); 
-                setTimeout(nextTurn, ANIMATION_TIME);
-
-            } else if (mode === 'color') {
-                const player1 = players.find(p => p.id === id1);
-                const player2 = players.find(p => p.id === id2);
-                
-                [player1.colorId, player2.colorId] = [player2.colorId, player1.colorId];
-
-                document.getElementById(`tile-${id1}`).className = `ui-tile bg-color-${player1.colorId}`;
-                document.getElementById(`tile-${id2}`).className = `ui-tile bg-color-${player2.colorId}`;
-                
-                updateMessage(`色が入れ替わりました！`);
-                setTimeout(nextTurn, 2000); 
-            }
-        }
-
-        function resetSelectables() {
-            document.querySelectorAll('.selectable, .selected').forEach(el => {
-                el.classList.remove('selectable', 'selected');
-                el.onclick = null;
-            });
-        }
-
-        function nextTurn() {
-            if(isGameOver) return;
-            do {
-                turnIndex = (turnIndex + 1) % players.length;
-            } while (!players[turnIndex].isHuman);
-            updateTurnUI();
-        }
-    </script>
+function spawnParticles(x,y,type){
+  const count=type==='goal-fx'?42:12;const colors=['#fff','#ff3333','#3333ff','#33cc33','#ffff33'];
+  for(let i=0;i<count;i++){
+    const p=document.createElement('div');p.className=`particle ${type}`;p.style.left=x+'px';p.style.top=y+'px';if(type==='goal-fx')p.style.backgroundColor=colors[Math.floor(Math.random()*colors.length)];
+    const a=Math.random()*Math.PI*2,s=type==='goal-fx'?Math.random()*140+40:Math.random()*50+20;p.style.setProperty('--tx',Math.cos(a)*s+'px');p.style.setProperty('--ty',(Math.sin(a)*s-(type==='ghost-fx'?35:0))+'px');document.body.appendChild(p);setTimeout(()=>p.remove(),1000);
+  }
+}
+</script>
 </body>
 </html>
