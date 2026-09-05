@@ -5,428 +5,80 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ghost Stairs</title>
 <style>
-:root{
-  --bg:#000;--panel:#070707;--panel2:#0d0d0d;--line:#fff;--muted:#9a9a9a;
-  --accent:#fff;--danger:#ff4d4d;--gold:#ffd700;
-  --cell-min:76px;--cell-h:112px;--piece:32px;--piece-bg-w:64px;--piece-bg-h:160px;
-  --dice:48px;--dice-bg-w:240px;--text:13px;--small:11px;--icon:14px;
-}
-@media(min-width:768px){:root{--cell-min:100px;--cell-h:145px;--piece:48px;--piece-bg-w:96px;--piece-bg-h:240px;--dice:64px;--dice-bg-w:320px;--text:15px;--small:12px;--icon:18px}}
-@media(min-width:1100px){:root{--cell-min:120px;--cell-h:172px;--piece:64px;--piece-bg-w:128px;--piece-bg-h:320px;--dice:80px;--dice-bg-w:400px;--text:17px;--small:13px;--icon:22px}}
-*{box-sizing:border-box}
-html,body{margin:0;min-height:100%;background:#000;color:#fff;font-family:"Courier New",monospace}
-body{min-height:100dvh;overflow:hidden;user-select:none}
-button,input{font:inherit}
-button{touch-action:manipulation}
-button:focus-visible,input:focus-visible{outline:3px solid #fff;outline-offset:3px}
-.pixel-art{image-rendering:pixelated;image-rendering:crisp-edges}
-.app{height:100dvh;display:grid;grid-template-rows:auto 1fr;background:#000}
-.topbar{z-index:20;background:#000;border-bottom:2px solid #fff;padding:8px 10px;box-shadow:0 3px 0 #111}
-.topbar-inner{width:min(1200px,100%);margin:auto}
-.brand{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
-.brand h1{font-size:clamp(16px,3vw,24px);margin:0;letter-spacing:.12em;text-transform:uppercase}
-.brand .tag{font-size:var(--small);color:#aaa;white-space:nowrap}
-.setup{display:grid;gap:10px}
-.setup-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.name-card{display:flex;align-items:center;gap:6px;border:1px solid #444;padding:5px 7px;background:#090909}
-.color-chip{width:var(--icon);height:var(--icon);border:1px solid #fff;flex:0 0 auto}
-.c0{background:#ff3333}.c1{background:#3333ff}.c2{background:#33cc33}.c3{background:#ffff33}
-.name-card input{width:3.2em;background:#000;color:#fff;border:1px solid #777;padding:5px;text-align:center;text-transform:none}
-.rule-toggle{display:flex;align-items:center;gap:8px;color:#ddd;font-size:var(--text)}
-.rule-toggle input{width:18px;height:18px;accent-color:#fff}
-.hint{font-size:var(--small);color:#aaa;line-height:1.5}
-.btn{border:2px solid #fff;background:#000;color:#fff;padding:7px 11px;cursor:pointer;font-weight:700;letter-spacing:.03em}
-.btn:hover{background:#fff;color:#000}.btn.secondary{border-color:#777;color:#bbb}.btn.secondary:hover{border-color:#fff;color:#fff;background:#111}
-.btn.danger{border-color:#ff5555;color:#ff7777}.btn.danger:hover{background:#4a0000;color:#fff}
-.play-ui{display:none;gap:10px;align-items:center}
-.turn-panel{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;width:100%}
-.dice-wrap{display:grid;justify-items:center;gap:4px}
-#dice{width:var(--dice);height:var(--dice);border:2px solid #fff;background:#111;color:#fff;display:grid;place-items:center;cursor:pointer;box-shadow:4px 4px 0 #333;padding:0;position:relative;overflow:hidden}
-#dice:not(:disabled):hover{transform:translate(-1px,-1px);box-shadow:6px 6px 0 #333}
-#dice:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
-#dice.ready{animation:dicePulse 1s steps(2,end) infinite}
-@keyframes dicePulse{50%{border-color:#999;box-shadow:4px 4px 0 #777}}
-#dice .dice-num{font-size:calc(var(--dice) * .46);font-weight:700;line-height:1}
-#dice .dice-ghost{display:none;width:var(--piece);height:var(--piece);background:url('pieces_sheet.png') no-repeat;background-size:var(--piece-bg-w) var(--piece-bg-h);background-position:0 calc(var(--piece) * -4)}
-#dice[data-face="g"] .dice-num{display:none}
-#dice[data-face="g"] .dice-ghost{display:block}
-.dice-label{font-size:10px;color:#999}
-.message{min-height:50px;display:flex;align-items:center;border:1px solid #555;background:#080808;padding:7px 9px;font-size:var(--text);line-height:1.4;white-space:normal}
-.status{display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-end}
-.player-info{display:flex;align-items:center;gap:5px;border:1px solid #555;background:#080808;padding:5px 7px;font-size:var(--text);font-weight:bold}
-.player-info.active{border:2px solid #fff;box-shadow:3px 3px 0 #333}
-.player-info.selectable{cursor:pointer;animation:blink .8s steps(2,end) infinite}.player-info.selected{border-color:#ff5555;box-shadow:0 0 0 2px #ff5555 inset}
-@keyframes blink{50%{opacity:.35}}
-.action-row{display:none;flex-wrap:wrap;gap:6px;margin-top:8px;justify-content:center}
-.board-shell{overflow:auto;background:#030303;position:relative;padding:12px 10px 90px}
-.board{position:relative;width:min(1200px,100%);margin:auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(var(--cell-min),1fr));grid-auto-rows:var(--cell-h);gap:8px}
-.cell{border:1px solid #555;background:#080808;color:#777;display:flex;justify-content:center;padding-top:5px;font-size:var(--small);position:relative}
-.cell::before,.cell::after{content:"";position:absolute;width:5px;height:5px;border-color:#444}
-.cell::before{left:3px;top:3px;border-left:1px solid;border-top:1px solid}.cell::after{right:3px;bottom:3px;border-right:1px solid;border-bottom:1px solid}
-.cell.start{color:#fff;border-color:#888}.cell.goal{color:#ffd700;border-color:#ffd700;box-shadow:inset 0 0 0 1px #6b5b00}
-.piece{position:absolute;left:0;top:0;width:var(--piece);height:var(--piece);background:url('pieces_sheet.png') no-repeat;background-size:var(--piece-bg-w) var(--piece-bg-h);transform:translate3d(0,0,0);transition:transform .42s linear;will-change:transform;z-index:10;border:0;padding:0;cursor:default}
-.piece.interactive{cursor:pointer}.piece.selectable{outline:2px solid #fff;outline-offset:2px;animation:pieceBlink .7s steps(2,end) infinite}.piece.selected{outline:2px solid #ff5555;outline-offset:2px}
-@keyframes pieceBlink{50%{opacity:.55}}
-.piece-color-0{background-position-y:0!important}.piece-color-1{background-position-y:calc(var(--piece)*-1)!important}.piece-color-2{background-position-y:calc(var(--piece)*-2)!important}.piece-color-3{background-position-y:calc(var(--piece)*-3)!important}.piece.ghost{background-position-y:calc(var(--piece)*-4)!important}
-.fab-row{position:fixed;right:10px;bottom:10px;display:flex;gap:6px;z-index:50}.fab{border:1px solid #666;background:#000;color:#aaa;padding:6px 8px;font-size:10px;cursor:pointer}.fab:hover{border-color:#fff;color:#fff}
-.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:1000;align-items:center;justify-content:center;padding:16px;overflow:auto}
-.dialog{width:min(560px,100%);border:2px solid #fff;background:#000;box-shadow:8px 8px 0 #222;padding:18px}
-.dialog h2{margin:0 0 12px;font-size:20px}.dialog h3{margin:16px 0 6px;font-size:14px}.dialog p,.dialog li{font-size:13px;line-height:1.55;color:#ddd}.dialog ul{padding-left:1.2em}.dialog .em{color:#fff;font-weight:bold}.dialog-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:16px}
-.ranking{display:grid;gap:4px}.rank-row{display:grid;grid-template-columns:58px auto 1fr auto;gap:8px;align-items:center;border-bottom:1px solid #333;padding:8px 0}.rank{font-weight:bold}.pos{color:#aaa;font-size:12px}.winner{color:#ffd700}
-.particle{position:fixed;border-radius:0;pointer-events:none;z-index:2000;animation:particle .72s steps(6,end) forwards}.particle.ghost-fx{width:8px;height:8px;background:#fff}.particle.goal-fx{width:6px;height:6px}
-@keyframes particle{to{transform:translate(var(--tx),var(--ty)) scale(0);opacity:0}}
-.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-@media(max-width:700px){
-  .brand{margin-bottom:6px}.brand .tag{display:none}.turn-panel{grid-template-columns:auto 1fr}.status{grid-column:1/-1;justify-content:flex-start}.message{min-height:44px}.topbar{padding:7px}.board-shell{padding-top:8px}.dialog{padding:14px}.rank-row{grid-template-columns:48px auto 1fr}.pos{grid-column:3}}
+:root{--bg:#000;--line:#fff;--muted:#999;--cell-min:76px;--cell-h:112px;--piece:32px;--piece-bg-w:64px;--piece-bg-h:160px;--dice:48px;--text:13px;--small:11px;--icon:14px}
+@media(min-width:768px){:root{--cell-min:100px;--cell-h:145px;--piece:48px;--piece-bg-w:96px;--piece-bg-h:240px;--dice:64px;--text:15px;--small:12px;--icon:18px}}
+@media(min-width:1100px){:root{--cell-min:120px;--cell-h:172px;--piece:64px;--piece-bg-w:128px;--piece-bg-h:320px;--dice:80px;--text:17px;--small:13px;--icon:22px}}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#000;color:#fff;font-family:"Courier New",monospace}body{min-height:100dvh;overflow:hidden;user-select:none}button,input{font:inherit}button{touch-action:manipulation}button:focus-visible,input:focus-visible{outline:3px solid #fff;outline-offset:3px}.pixel-art{image-rendering:pixelated;image-rendering:crisp-edges}
+.app{height:100dvh;display:grid;grid-template-rows:auto 1fr}.topbar{z-index:20;background:#000;border-bottom:2px solid #fff;padding:8px 10px}.topbar-inner{width:min(1200px,100%);margin:auto}.brand{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}.brand h1{font-size:clamp(16px,3vw,24px);margin:0;letter-spacing:.12em}.brand .tag{font-size:var(--small);color:#aaa}.setup{display:grid;gap:10px}.setup-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.name-card{display:flex;align-items:center;gap:6px;border:1px solid #444;padding:5px 7px;background:#090909}.color-chip{width:var(--icon);height:var(--icon);border:1px solid #fff;flex:0 0 auto}.c0{background:#f33}.c1{background:#33f}.c2{background:#3c3}.c3{background:#ff3}.name-card input{width:3.2em;background:#000;color:#fff;border:1px solid #777;padding:5px;text-align:center}.rule-toggle{display:flex;align-items:center;gap:8px;color:#ddd;font-size:var(--text)}.hint{font-size:var(--small);color:#aaa;line-height:1.5}.btn{border:2px solid #fff;background:#000;color:#fff;padding:7px 11px;cursor:pointer;font-weight:700}.btn.secondary{border-color:#777;color:#bbb}.btn.danger{border-color:#f55;color:#f77}
+.play-ui{display:none;gap:10px;align-items:center}.turn-panel{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;width:100%}.dice-wrap{display:grid;justify-items:center;gap:4px}#dice{width:var(--dice);height:var(--dice);border:2px solid #fff;background:#111;color:#fff;display:grid;place-items:center;cursor:pointer;box-shadow:4px 4px 0 #333;padding:0;position:relative;overflow:hidden}#dice:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}#dice.ready{animation:dicePulse 1s steps(2,end) infinite}@keyframes dicePulse{50%{border-color:#999;box-shadow:4px 4px 0 #777}}#dice .dice-num{font-size:calc(var(--dice)*.46);font-weight:700;line-height:1}#dice .dice-ghost{display:none;width:var(--piece);height:var(--piece);background:url('pieces_sheet.png') no-repeat;background-size:var(--piece-bg-w) var(--piece-bg-h);background-position:0 calc(var(--piece)*-4)}#dice[data-face="g"] .dice-num{display:none}#dice[data-face="g"] .dice-ghost{display:block}.dice-label{font-size:10px;color:#999}.message{min-height:50px;display:flex;align-items:center;border:1px solid #555;background:#080808;padding:7px 9px;font-size:var(--text);line-height:1.4}.status{display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-end}.player-info{display:flex;align-items:center;gap:5px;border:1px solid #555;background:#080808;padding:5px 7px;font-size:var(--text);font-weight:bold}.player-info.active{border:2px solid #fff}.player-info.selectable{cursor:pointer;outline:2px solid #fff;outline-offset:2px}.player-info.selected{outline-color:#f55}.action-row{display:none;flex-wrap:wrap;gap:6px;margin-top:8px;justify-content:center}
+.board-shell{overflow:auto;background:#030303;position:relative;padding:12px 10px 90px}.board{position:relative;width:min(1200px,100%);margin:auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(var(--cell-min),1fr));grid-auto-rows:var(--cell-h);gap:8px}.cell{border:1px solid #555;background:#080808;color:#777;display:flex;justify-content:center;padding-top:5px;font-size:var(--small);position:relative}.cell.start{color:#fff;border-color:#888}.cell.goal{color:#ffd700;border-color:#ffd700}
+.piece{position:absolute;left:0;top:0;width:var(--piece);height:var(--piece);background:url('pieces_sheet.png') no-repeat;background-size:var(--piece-bg-w) var(--piece-bg-h);transform:translate3d(0,0,0);transition:transform .34s linear;will-change:transform;z-index:10;border:0;padding:0;cursor:default}.piece.interactive{cursor:pointer}.piece.selectable{outline:2px solid #fff;outline-offset:2px;z-index:40}.piece.selected{outline-color:#f55;z-index:50}.piece-color-0{background-position-y:0!important}.piece-color-1{background-position-y:calc(var(--piece)*-1)!important}.piece-color-2{background-position-y:calc(var(--piece)*-2)!important}.piece-color-3{background-position-y:calc(var(--piece)*-3)!important}.piece.ghost{background-position-y:calc(var(--piece)*-4)!important}
+.fab-row{position:fixed;right:10px;bottom:10px;display:flex;gap:6px;z-index:50}.fab{border:1px solid #666;background:#000;color:#aaa;padding:6px 8px;font-size:10px}.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:1000;align-items:center;justify-content:center;padding:16px;overflow:auto}.dialog{width:min(560px,100%);border:2px solid #fff;background:#000;box-shadow:8px 8px 0 #222;padding:18px}.dialog h2{margin:0 0 12px}.dialog p,.dialog li{font-size:13px;line-height:1.55;color:#ddd}.dialog .em{color:#fff;font-weight:bold}.dialog-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}.ranking{display:grid;gap:4px}.rank-row{display:grid;grid-template-columns:58px auto 1fr auto;gap:8px;align-items:center;border-bottom:1px solid #333;padding:8px 0}.winner{color:#ffd700}.pos{color:#aaa;font-size:12px}.particle{position:fixed;pointer-events:none;z-index:2000;animation:particle .72s steps(6,end) forwards}.particle.ghost-fx{width:8px;height:8px;background:#fff}.particle.goal-fx{width:6px;height:6px}@keyframes particle{to{transform:translate(var(--tx),var(--ty)) scale(0);opacity:0}}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(max-width:700px){.brand .tag{display:none}.turn-panel{grid-template-columns:auto 1fr}.status{grid-column:1/-1;justify-content:flex-start}.message{min-height:44px}.topbar{padding:7px}.board-shell{padding-top:8px}.dialog{padding:14px}.rank-row{grid-template-columns:48px auto 1fr}.pos{grid-column:3}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}
 </style>
 </head>
 <body>
-<div class="app">
-  <header class="topbar">
-    <div class="topbar-inner">
-      <div class="brand"><h1>GHOST STAIRS</h1><div class="tag">WHO ARE YOU?</div></div>
-      <section id="setup-area" class="setup" aria-label="ゲーム設定">
-        <div class="setup-row">
-          <label class="name-card"><span class="color-chip c0" aria-hidden="true"></span><span class="sr-only">赤プレイヤー名</span><input id="p1-input" value="AA" maxlength="2" aria-label="赤プレイヤー名"></label>
-          <label class="name-card"><span class="color-chip c1" aria-hidden="true"></span><span class="sr-only">青プレイヤー名</span><input id="p2-input" value="BB" maxlength="2" aria-label="青プレイヤー名"></label>
-          <label class="name-card"><span class="color-chip c2" aria-hidden="true"></span><span class="sr-only">緑プレイヤー名</span><input id="p3-input" value="" maxlength="2" aria-label="緑プレイヤー名"></label>
-          <label class="name-card"><span class="color-chip c3" aria-hidden="true"></span><span class="sr-only">黄プレイヤー名</span><input id="p4-input" value="" maxlength="2" aria-label="黄プレイヤー名"></label>
-          <button class="btn" id="start-btn" type="button">START</button>
-          <button class="btn secondary" id="rules-btn-setup" type="button">RULES</button>
-        </div>
-        <label class="rule-toggle"><input type="checkbox" id="color-swap-rule">全員ゴースト時に「色の入れ替え」も選べる</label>
-        <div class="hint">2〜4人。空欄は中立ゴースト。名前は2文字まで。</div>
-      </section>
-
-      <section id="play-ui" class="play-ui" aria-label="プレイ情報">
-        <div class="turn-panel">
-          <div class="dice-wrap">
-            <button id="dice" class="ready" type="button" aria-label="サイコロを振る" data-face="1"><span class="dice-num" aria-hidden="true">1</span><span class="dice-ghost pixel-art" aria-hidden="true"></span></button>
-            <span class="dice-label">ROLL</span>
-          </div>
-          <div id="message" class="message" role="status" aria-live="polite"></div>
-          <div id="player-status" class="status" aria-label="プレイヤー状況"></div>
-        </div>
-        <div id="action-buttons" class="action-row">
-          <button class="btn" id="swap-piece-btn" type="button">コマ入替</button>
-          <button class="btn" id="swap-color-btn" type="button">色入替</button>
-          <button class="btn secondary" id="cancel-action-btn" type="button">キャンセル</button>
-        </div>
-      </section>
-    </div>
-  </header>
-
-  <main id="board-container" class="board-shell">
-    <div id="board" class="board" aria-label="ゲーム盤"></div>
-  </main>
-</div>
-
-<div class="fab-row" id="fab-row" hidden>
-  <button class="fab" id="rules-btn" type="button">RULES</button>
-  <button class="fab" id="reset-btn" type="button">RESET</button>
-</div>
-
-<div id="rules-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="rules-title">
-  <div class="dialog">
-    <h2 id="rules-title">RULES</h2>
-    <p class="em">一番楽しいところ：途中から「どのコマが誰のものか」が分からなくなる。</p>
-    <ul>
-      <li>自分の番にサイコロを振る。数字なら、その時点で自分のコマが見えていればそのコマが進む。</li>
-      <li>ゴーストの目が出たら、まだ見えているコマを1つゴースト化する。</li>
-      <li>自分のコマがすでにゴーストなら、数字の目では好きなゴーストを1つ選んで進める。どれが自分だったかは表示されない。</li>
-      <li>全コマがゴーストのときにゴーストの目が出たら、ゴースト2体の位置を入れ替える。</li>
-      <li>「色の入れ替え」ルールをONにしている場合は、その場面でプレイヤー同士の色（＝どのコマがその人の勝利になるか）を入れ替えることもできる。</li>
-      <li>どれか1体がGOALに着いたら即終了。正体を公開し、そのコマを所有しているプレイヤーが勝者。</li>
-    </ul>
-    <p>つまり、<span class="em">「自分がゴールした！」と思ったのに別人のコマだった</span>、という事故が仕様です。</p>
-    <div class="dialog-actions"><button class="btn" id="close-rules-btn" type="button">OK</button></div>
-  </div>
-</div>
-
-<div id="result-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="result-title">
-  <div class="dialog">
-    <h2 id="result-title">GAME FINISH</h2>
-    <div id="ranking-list" class="ranking"></div>
-    <p class="hint">2位以下は終了時点の位置順です。</p>
-    <div class="dialog-actions">
-      <button class="btn" id="rematch-btn" type="button">RE-MATCH</button>
-      <button class="btn danger" id="back-setup-btn" type="button">SETUP</button>
-    </div>
-  </div>
-</div>
-
+<div class="app"><header class="topbar"><div class="topbar-inner"><div class="brand"><h1>GHOST STAIRS</h1><div class="tag">WHO ARE YOU?</div></div>
+<section id="setup-area" class="setup"><div class="setup-row">
+<label class="name-card"><span class="color-chip c0"></span><input id="p1-input" value="AA" maxlength="2" aria-label="赤プレイヤー名"></label><label class="name-card"><span class="color-chip c1"></span><input id="p2-input" value="BB" maxlength="2" aria-label="青プレイヤー名"></label><label class="name-card"><span class="color-chip c2"></span><input id="p3-input" maxlength="2" aria-label="緑プレイヤー名"></label><label class="name-card"><span class="color-chip c3"></span><input id="p4-input" maxlength="2" aria-label="黄プレイヤー名"></label><button class="btn" id="start-btn">START</button><button class="btn secondary" id="rules-btn-setup">RULES</button></div>
+<label class="rule-toggle"><input type="checkbox" id="color-swap-rule">全員ゴースト時に「色の入れ替え」も選べる</label><div class="hint">2〜4人。空欄は中立ゴースト。名前は2文字まで。</div></section>
+<section id="play-ui" class="play-ui"><div class="turn-panel"><div class="dice-wrap"><button id="dice" class="ready" data-face="1" aria-label="サイコロを振る"><span class="dice-num">1</span><span class="dice-ghost pixel-art"></span></button><span class="dice-label">ROLL</span></div><div id="message" class="message" role="status"></div><div id="player-status" class="status"></div></div><div id="action-buttons" class="action-row"><button class="btn" id="swap-piece-btn">コマ入替</button><button class="btn" id="swap-color-btn">色入替</button><button class="btn secondary" id="cancel-action-btn">キャンセル</button></div></section>
+</div></header><main id="board-container" class="board-shell"><div id="board" class="board"></div></main></div>
+<div class="fab-row" id="fab-row" hidden><button class="fab" id="rules-btn">RULES</button><button class="fab" id="reset-btn">RESET</button></div>
+<div id="rules-overlay" class="overlay"><div class="dialog"><h2>RULES</h2><p class="em">途中から「どのコマが誰のものか」が分からなくなる。</p><ul><li>数字なら自分のコマが見えていればそのコマが進む。</li><li>ゴーストの目なら、見えているコマを1つゴースト化。</li><li>自分のコマがゴーストなら、数字の目で好きなゴーストを1つ選んで進める。</li><li>全員ゴースト時にゴーストの目なら、ゴースト2体の位置を入れ替える。</li><li>色入替ONなら、その場面でプレイヤー同士の色も入れ替え可能。</li><li>どれか1体がGOALで即終了。正体公開。</li></ul><p><span class="em">「自分がゴールした！」と思ったのに別人のコマだった</span>、という事故が仕様です。</p><div class="dialog-actions"><button class="btn" id="close-rules-btn">OK</button></div></div></div>
+<div id="result-overlay" class="overlay"><div class="dialog"><h2>GAME FINISH</h2><div id="ranking-list" class="ranking"></div><p class="hint">2位以下は終了時点の位置順です。</p><div class="dialog-actions"><button class="btn" id="rematch-btn">RE-MATCH</button><button class="btn danger" id="back-setup-btn">SETUP</button></div></div></div>
 <script>
-const TOTAL_CELLS=23;
-const GOAL_POS=TOTAL_CELLS-1;
-const ANIMATION_TIME=650;
-const SAVE_KEY='ghostStairs_localSave_v7';
-
-let players=[];
-let pieces=[];
-let turnIndex=0;
-let isColorSwapEnabled=false;
-let phase='setup';
-let selectedTargets=[];
-let pendingNumber=null;
-let animationLock=false;
-let resizeTimer=null;
-
+const TOTAL_CELLS=23,GOAL_POS=22,ANIMATION_TIME=500,SAVE_KEY='ghostStairs_localSave_v8';
+let players=[],pieces=[],turnIndex=0,isColorSwapEnabled=false,phase='setup',selectedTargets=[],pendingNumber=null,animationLock=false,resizeTimer=null;
 const $=id=>document.getElementById(id);
-
-window.addEventListener('DOMContentLoaded',()=>{
-  bindStaticEvents();
-  createBoardCells();
-  if(loadState()) resumeGame(); else showSetup();
-});
-
-function bindStaticEvents(){
-  $('start-btn').addEventListener('click',startGameFromInput);
-  $('dice').addEventListener('click',rollDice);
-  $('rules-btn').addEventListener('click',showRules);
-  $('rules-btn-setup').addEventListener('click',showRules);
-  $('close-rules-btn').addEventListener('click',hideRules);
-  $('rules-overlay').addEventListener('click',e=>{if(e.target===$('rules-overlay'))hideRules()});
-  $('reset-btn').addEventListener('click',()=>{if(confirm('ゲームをリセットして名前入力に戻りますか？'))resetGame()});
-  $('swap-piece-btn').addEventListener('click',()=>startSwap('piece'));
-  $('swap-color-btn').addEventListener('click',()=>startSwap('color'));
-  $('cancel-action-btn').addEventListener('click',restorePhaseInteraction);
-  $('rematch-btn').addEventListener('click',rematchGame);
-  $('back-setup-btn').addEventListener('click',resetGame);
-  window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(renderPieces,120)});
-  document.addEventListener('keydown',e=>{
-    if(e.key==='Escape' && $('rules-overlay').style.display==='flex') hideRules();
-    if((e.key===' '||e.key==='Enter') && phase==='ready' && document.activeElement===document.body){e.preventDefault();rollDice()}
-  });
-  setDiceFace(1);
+window.addEventListener('DOMContentLoaded',()=>{bind();createBoardCells();if(loadState())resumeGame();else showSetup()});
+function bind(){
+ $('start-btn').onclick=startGameFromInput;$('dice').onclick=rollDice;$('rules-btn').onclick=showRules;$('rules-btn-setup').onclick=showRules;$('close-rules-btn').onclick=hideRules;$('rules-overlay').onclick=e=>{if(e.target===$('rules-overlay'))hideRules()};$('reset-btn').onclick=()=>{if(confirm('ゲームをリセットしますか？'))resetGame()};$('swap-piece-btn').onclick=()=>startSwap('piece');$('swap-color-btn').onclick=()=>startSwap('color');$('cancel-action-btn').onclick=restorePhaseInteraction;$('rematch-btn').onclick=rematchGame;$('back-setup-btn').onclick=resetGame;window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(renderPieces,100)});setDiceFace(1);
 }
-
-function showSetup(){
-  phase='setup';
-  $('setup-area').style.display='grid';
-  $('play-ui').style.display='none';
-  $('fab-row').hidden=true;
-  $('result-overlay').style.display='none';
-  $('board').querySelectorAll('.piece').forEach(el=>el.remove());
-}
-function showRules(){$('rules-overlay').style.display='flex';$('close-rules-btn').focus()}
-function hideRules(){$('rules-overlay').style.display='none'}
-
-function createBoardCells(){
-  const board=$('board');board.innerHTML='';
-  for(let i=0;i<TOTAL_CELLS;i++){
-    const cell=document.createElement('div');cell.className='cell';cell.id=`cell-${i}`;
-    cell.textContent=i===0?'START':i===GOAL_POS?'GOAL':String(i);
-    if(i===0)cell.classList.add('start');if(i===GOAL_POS)cell.classList.add('goal');
-    board.appendChild(cell);
-  }
-}
-
-function startGameFromInput(){
-  const inputs=[$('p1-input'),$('p2-input'),$('p3-input'),$('p4-input')];
-  players=[];pieces=[];let humanCount=0;
-  inputs.forEach((input,index)=>{
-    const raw=input.value.trim();const isHuman=raw.length>0;if(isHuman)humanCount++;
-    players.push({id:index,name:isHuman?raw:'中立',isHuman,colorId:index});
-    pieces.push({id:index,pos:0,isGhost:!isHuman,currentSlot:-1});
-  });
-  if(humanCount<2){alert('少なくとも2人は名前を入力してください。');return}
-  isColorSwapEnabled=$('color-swap-rule').checked;
-  chooseRandomHumanTurn();
-  phase='ready';selectedTargets=[];pendingNumber=null;animationLock=false;
-  initPlayUI();saveState();
-}
-
+function showSetup(){phase='setup';$('setup-area').style.display='grid';$('play-ui').style.display='none';$('fab-row').hidden=true;$('result-overlay').style.display='none';document.querySelectorAll('.piece').forEach(e=>e.remove())}
+function showRules(){$('rules-overlay').style.display='flex'}function hideRules(){$('rules-overlay').style.display='none'}
+function createBoardCells(){const b=$('board');b.innerHTML='';for(let i=0;i<TOTAL_CELLS;i++){const c=document.createElement('div');c.className='cell';c.id=`cell-${i}`;c.textContent=i===0?'START':i===GOAL_POS?'GOAL':String(i);if(i===0)c.classList.add('start');if(i===GOAL_POS)c.classList.add('goal');b.appendChild(c)}}
+function startGameFromInput(){const ins=[$('p1-input'),$('p2-input'),$('p3-input'),$('p4-input')];players=[];pieces=[];let hc=0;ins.forEach((input,index)=>{const raw=input.value.trim(),isHuman=raw.length>0;if(isHuman)hc++;players.push({id:index,name:isHuman?raw:'中立',isHuman,colorId:index});pieces.push({id:index,pos:0,isGhost:!isHuman,currentSlot:-1})});if(hc<2){alert('少なくとも2人は名前を入力してください。');return}isColorSwapEnabled=$('color-swap-rule').checked;chooseRandomHumanTurn();phase='ready';selectedTargets=[];pendingNumber=null;animationLock=false;initPlayUI();saveState()}
 function chooseRandomHumanTurn(){const ids=players.filter(p=>p.isHuman).map(p=>p.id);turnIndex=ids[Math.floor(Math.random()*ids.length)]}
-
-function initPlayUI(){
-  $('setup-area').style.display='none';$('play-ui').style.display='grid';$('fab-row').hidden=false;$('result-overlay').style.display='none';
-  buildPlayerStatus();buildPieces();setTimeout(()=>{renderPieces();restorePhaseInteraction()},50);
-}
-function buildPlayerStatus(){
-  const area=$('player-status');area.innerHTML='';
-  players.forEach(p=>{
-    const el=document.createElement('button');el.type='button';el.className='player-info';el.id=`p-info-${p.id}`;el.disabled=true;
-    const chip=document.createElement('span');chip.className=`color-chip c${p.colorId}`;chip.id=`tile-${p.id}`;chip.setAttribute('aria-hidden','true');
-    const name=document.createElement('span');name.textContent=p.name;
-    el.append(chip,name);area.appendChild(el);
-  });
-}
-function buildPieces(){
-  document.querySelectorAll('.piece').forEach(el=>el.remove());
-  pieces.forEach(p=>{
-    const el=document.createElement('button');el.type='button';el.id=`piece-${p.id}`;el.className=`piece pixel-art piece-color-${p.id}${p.isGhost?' ghost':''}`;
-    el.setAttribute('aria-label',p.isGhost?'ゴースト':'コマ');el.disabled=true;$('board').appendChild(el);
-  });
-}
-
-function saveState(){
-  if(phase==='setup'||phase==='gameover')return;
-  localStorage.setItem(SAVE_KEY,JSON.stringify({players,pieces,turnIndex,isColorSwapEnabled,phase,selectedTargets,pendingNumber}));
-}
-function loadState(){
-  const raw=localStorage.getItem(SAVE_KEY);if(!raw)return false;
-  try{
-    const s=JSON.parse(raw);
-    if(!Array.isArray(s.players)||!Array.isArray(s.pieces))return false;
-    players=s.players;pieces=s.pieces;turnIndex=s.turnIndex;isColorSwapEnabled=!!s.isColorSwapEnabled;
-    phase=['ready','chooseGhostMove','chooseGhostify','chooseSwapMode','swapPiece','swapColor','resolving'].includes(s.phase)?s.phase:'ready';
-    selectedTargets=Array.isArray(s.selectedTargets)?s.selectedTargets:[];pendingNumber=Number.isFinite(s.pendingNumber)?s.pendingNumber:null;
-    animationLock=false;return true;
-  }catch{return false}
-}
-function clearSave(){localStorage.removeItem(SAVE_KEY)}
-function resumeGame(){
-  initPlayUI();
-  if(phase==='resolving'){
-    setTimeout(()=>{
-      if(pieces.some(p=>p.pos===GOAL_POS)) triggerGameOver();
-      else nextTurn();
-    },120);
-  }
-}
-
+function initPlayUI(){$('setup-area').style.display='none';$('play-ui').style.display='grid';$('fab-row').hidden=false;$('result-overlay').style.display='none';buildPlayerStatus();buildPieces();setTimeout(()=>{renderPieces();restorePhaseInteraction()},40)}
+function buildPlayerStatus(){const a=$('player-status');a.innerHTML='';players.forEach(p=>{const e=document.createElement('button');e.className='player-info';e.id=`p-info-${p.id}`;e.disabled=true;const chip=document.createElement('span');chip.className=`color-chip c${p.colorId}`;chip.id=`tile-${p.id}`;const name=document.createElement('span');name.textContent=p.name;e.append(chip,name);a.appendChild(e)})}
+function buildPieces(){document.querySelectorAll('.piece').forEach(e=>e.remove());pieces.forEach(p=>{const e=document.createElement('button');e.id=`piece-${p.id}`;e.className=`piece pixel-art piece-color-${p.id}${p.isGhost?' ghost':''}`;e.disabled=true;$('board').appendChild(e)})}
+function saveState(){if(phase==='setup'||phase==='gameover')return;localStorage.setItem(SAVE_KEY,JSON.stringify({players,pieces,turnIndex,isColorSwapEnabled,phase,selectedTargets,pendingNumber}))}
+function loadState(){const raw=localStorage.getItem(SAVE_KEY);if(!raw)return false;try{const s=JSON.parse(raw);if(!Array.isArray(s.players)||!Array.isArray(s.pieces))return false;players=s.players;pieces=s.pieces;turnIndex=s.turnIndex;isColorSwapEnabled=!!s.isColorSwapEnabled;phase=['ready','chooseGhostMove','chooseGhostify','chooseSwapMode','swapPiece','swapColor','resolving'].includes(s.phase)?s.phase:'ready';selectedTargets=Array.isArray(s.selectedTargets)?s.selectedTargets:[];pendingNumber=Number.isFinite(s.pendingNumber)?s.pendingNumber:null;return true}catch{return false}}
+function clearSave(){localStorage.removeItem(SAVE_KEY)}function resumeGame(){initPlayUI();if(phase==='resolving')setTimeout(()=>pieces.some(p=>p.pos===GOAL_POS)?triggerGameOver():nextTurn(),100)}
 function resetGame(){clearSave();players=[];pieces=[];selectedTargets=[];pendingNumber=null;animationLock=false;phase='setup';$('color-swap-rule').checked=false;createBoardCells();showSetup()}
-function rematchGame(){
-  pieces.forEach(p=>{p.pos=0;p.currentSlot=-1;p.isGhost=!players.find(x=>x.id===p.id).isHuman});
-  chooseRandomHumanTurn();phase='ready';selectedTargets=[];pendingNumber=null;animationLock=false;initPlayUI();saveState();
-}
-
-function updateMessage(text){$('message').textContent=text}
-function setDiceReady(ready){const d=$('dice');d.disabled=!ready;d.classList.toggle('ready',ready)}
-function updateTurnHighlight(){document.querySelectorAll('.player-info').forEach(el=>el.classList.remove('active'));const el=$(`p-info-${turnIndex}`);if(el)el.classList.add('active')}
-function hideActions(){$('action-buttons').style.display='none'}
-function showActions(){$('action-buttons').style.display='flex'}
-
-function restorePhaseInteraction(){
-  clearInteractives();hideActions();updateTurnHighlight();
-  if(phase==='ready'){
-    setDiceReady(true);updateMessage(`【${players[turnIndex].name} のターン】 サイコロを振ってください。`);saveState();return;
-  }
-  setDiceReady(false);
-  if(phase==='chooseGhostMove'){updateMessage(`${pendingNumber}マス進めるゴーストを選んでください。`);setPieceChoices(p=>p.isGhost,id=>finishGhostMove(id));}
-  else if(phase==='chooseGhostify'){updateMessage('ゴースト化するコマを選んでください。');setPieceChoices(p=>!p.isGhost,id=>finishGhostify(id));}
-  else if(phase==='chooseSwapMode'){updateMessage('全員ゴースト。入れ替え方法を選んでください。');showActions();$('cancel-action-btn').style.display='none';}
-  else if(phase==='swapPiece'){updateMessage(selectedTargets.length?'2つ目のゴーストを選択（選び直し可）。':'入れ替える1つ目のゴーストを選択。');setPieceChoices(p=>p.isGhost,id=>selectSwapTarget(id,'piece'));}
-  else if(phase==='swapColor'){updateMessage(selectedTargets.length?'2人目を選択（選び直し可）。':'色を入れ替える1人目を選択。');setPlayerChoices(id=>selectSwapTarget(id,'color'));}
-  saveState();
-}
-
-function clearInteractives(){
-  document.querySelectorAll('.piece').forEach(el=>{el.classList.remove('interactive','selectable','selected');el.disabled=true;el.onclick=null});
-  document.querySelectorAll('.player-info').forEach(el=>{el.classList.remove('selectable','selected');el.disabled=true;el.onclick=null});
-}
-function setPieceChoices(predicate,handler){
-  pieces.filter(predicate).forEach(p=>{
-    const el=$(`piece-${p.id}`);if(!el)return;el.disabled=false;el.classList.add('interactive','selectable');
-    if(selectedTargets.includes(p.id))el.classList.add('selected');
-    el.onclick=()=>handler(p.id);
+function rematchGame(){pieces.forEach(p=>{p.pos=0;p.currentSlot=-1;p.isGhost=!players.find(x=>x.id===p.id).isHuman});chooseRandomHumanTurn();phase='ready';selectedTargets=[];pendingNumber=null;initPlayUI();saveState()}
+function updateMessage(t){$('message').textContent=t}function setDiceReady(r){$('dice').disabled=!r;$('dice').classList.toggle('ready',r)}function setDiceFace(face){const d=$('dice');d.dataset.face=String(face);d.querySelector('.dice-num').textContent=face==='g'?'':String(face)}
+function updateTurnHighlight(){document.querySelectorAll('.player-info').forEach(e=>e.classList.remove('active'));const e=$(`p-info-${turnIndex}`);if(e)e.classList.add('active')}function hideActions(){$('action-buttons').style.display='none'}function showActions(){$('action-buttons').style.display='flex'}
+function restorePhaseInteraction(){clearInteractives();hideActions();updateTurnHighlight();if(phase==='ready'){setDiceReady(true);updateMessage(`【${players[turnIndex].name} のターン】 サイコロを振ってください。`);renderPieces();saveState();return}setDiceReady(false);if(phase==='chooseGhostMove'){updateMessage(`${pendingNumber}マス進めるゴーストを選んでください。`);setPieceChoices(p=>p.isGhost,id=>finishGhostMove(id))}else if(phase==='chooseGhostify'){updateMessage('ゴースト化するコマを選んでください。');setPieceChoices(p=>!p.isGhost,id=>finishGhostify(id))}else if(phase==='chooseSwapMode'){updateMessage('全員ゴースト。入れ替え方法を選んでください。');showActions();$('cancel-action-btn').style.display='none'}else if(phase==='swapPiece'){updateMessage(selectedTargets.length?'2つ目のゴーストを選択。':'入れ替える1つ目のゴーストを選択。');setPieceChoices(p=>p.isGhost,id=>selectSwapTarget(id,'piece'))}else if(phase==='swapColor'){updateMessage(selectedTargets.length?'2人目を選択。':'色を入れ替える1人目を選択。');setPlayerChoices(id=>selectSwapTarget(id,'color'))}renderPieces();saveState()}
+function clearInteractives(){document.querySelectorAll('.piece').forEach(e=>{e.classList.remove('interactive','selectable','selected');e.disabled=true;e.onclick=null});document.querySelectorAll('.player-info').forEach(e=>{e.classList.remove('selectable','selected');e.disabled=true;e.onclick=null})}
+function setPieceChoices(pred,handler){pieces.filter(pred).forEach(p=>{const e=$(`piece-${p.id}`);e.disabled=false;e.classList.add('interactive','selectable');if(selectedTargets.includes(p.id))e.classList.add('selected');e.onclick=()=>handler(p.id)})}
+function setPlayerChoices(handler){players.forEach(p=>{const e=$(`p-info-${p.id}`);e.disabled=false;e.classList.add('selectable');if(selectedTargets.includes(p.id))e.classList.add('selected');e.onclick=()=>handler(p.id)})}
+function rollDice(){if(phase!=='ready'||animationLock)return;animationLock=true;setDiceReady(false);clearInteractives();let count=0;const faces=[1,2,3,4,'g'];const timer=setInterval(()=>{setDiceFace(faces[Math.floor(Math.random()*faces.length)]);if(++count>=8){clearInterval(timer);const ff=[1,2,3,4,'g','g'],r=ff[Math.floor(Math.random()*ff.length)];setDiceFace(r);animationLock=false;r==='g'?handleGhostRoll():handleNumberRoll(r)}},65)}
+function handleNumberRoll(num){const own=pieces.find(p=>p.id===turnIndex);if(!own.isGhost){updateMessage(`${players[turnIndex].name} が ${num} マス進みます。`);movePiece(own,num)}else{pendingNumber=num;phase='chooseGhostMove';selectedTargets=[];restorePhaseInteraction()}}
+function finishGhostMove(id){const t=pieces.find(p=>p.id===id);movePiece(t,pendingNumber);pendingNumber=null}function movePiece(p,n){clearInteractives();p.currentSlot=-1;p.pos=Math.min(p.pos+n,GOAL_POS);phase='resolving';renderPieces();saveState();setTimeout(p.pos===GOAL_POS?triggerGameOver:nextTurn,ANIMATION_TIME)}
+function handleGhostRoll(){const visible=pieces.filter(p=>!p.isGhost);if(visible.length){phase='chooseGhostify';selectedTargets=[];restorePhaseInteraction()}else if(isColorSwapEnabled){phase='chooseSwapMode';selectedTargets=[];restorePhaseInteraction()}else startSwap('piece')}
+function finishGhostify(id){const p=pieces.find(x=>x.id===id);p.isGhost=true;phase='resolving';const e=$(`piece-${id}`);e.classList.add('ghost');clearInteractives();const r=e.getBoundingClientRect();spawnParticles(r.left+r.width/2,r.top+r.height/2,'ghost-fx');updateMessage('ゴースト化しました。');renderPieces();saveState();setTimeout(nextTurn,800)}
+function startSwap(mode){$('cancel-action-btn').style.display='inline-block';selectedTargets=[];phase=mode==='piece'?'swapPiece':'swapColor';restorePhaseInteraction()}
+function selectSwapTarget(id,mode){if(selectedTargets.includes(id)){selectedTargets=selectedTargets.filter(x=>x!==id);restorePhaseInteraction();return}selectedTargets.push(id);if(selectedTargets.length<2){restorePhaseInteraction();return}executeSwap(mode)}
+function executeSwap(mode){const[a,b]=selectedTargets;clearInteractives();hideActions();if(mode==='piece'){const p1=pieces.find(p=>p.id===a),p2=pieces.find(p=>p.id===b);[p1.pos,p2.pos]=[p2.pos,p1.pos];[p1.currentSlot,p2.currentSlot]=[p2.currentSlot,p1.currentSlot];updateMessage('ゴーストの位置が入れ替わりました。');renderPieces()}else{const p1=players.find(p=>p.id===a),p2=players.find(p=>p.id===b);[p1.colorId,p2.colorId]=[p2.colorId,p1.colorId];$('tile-'+a).className=`color-chip c${p1.colorId}`;$('tile-'+b).className=`color-chip c${p2.colorId}`;updateMessage('プレイヤーの色が入れ替わりました。')}selectedTargets=[];phase='resolving';saveState();setTimeout(nextTurn,ANIMATION_TIME)}
+function nextTurn(){do{turnIndex=(turnIndex+1)%players.length}while(!players[turnIndex].isHuman);phase='ready';selectedTargets=[];pendingNumber=null;animationLock=false;restorePhaseInteraction()}
+function triggerGameOver(){phase='gameover';clearSave();setDiceReady(false);clearInteractives();pieces.forEach(p=>p.isGhost=false);renderPieces();const goal=pieces.find(p=>p.pos===GOAL_POS),owner=goal?players.find(p=>p.colorId===goal.id):null;updateMessage(owner?`${owner.name} のコマがGOAL！ 正体を公開します。`:'GOAL！');spawnParticles(innerWidth/2,innerHeight/2,'goal-fx');setTimeout(showResult,550)}
+function showResult(){const ranking=[...pieces].sort((a,b)=>b.pos-a.pos),list=$('ranking-list');list.innerHTML='';ranking.forEach((piece,index)=>{const owner=players.find(p=>p.colorId===piece.id),row=document.createElement('div');row.className='rank-row';const r=document.createElement('div');r.className=index===0?'winner':'';r.textContent=['1ST','2ND','3RD','4TH'][index];const chip=document.createElement('span');chip.className=`color-chip c${piece.id}`;const name=document.createElement('div');name.textContent=owner?.name||'?';const pos=document.createElement('div');pos.className='pos';pos.textContent=piece.pos===GOAL_POS?'GOAL':`${piece.pos}マス`;row.append(r,chip,name,pos);list.appendChild(row)});$('result-overlay').style.display='flex'}
+// 通常配置はcurrentSlotを維持。選択中だけ、同一マスの選択可能コマをマス内で一時的に散開する。
+function renderPieces(){if(!pieces.length)return;const occupancy={};for(let i=0;i<TOTAL_CELLS;i++)occupancy[i]={pieces:[],used:[false,false,false,false]};pieces.forEach(p=>occupancy[p.pos].pieces.push(p));const boardRect=$('board').getBoundingClientRect();
+ for(const id in occupancy){const data=occupancy[id];if(!data.pieces.length)continue;const cell=$(`cell-${id}`),rect=cell.getBoundingClientRect(),cellLeft=rect.left-boardRect.left,cellTop=cell.offsetTop,cellW=rect.width,cellH=rect.height;
+  data.pieces.forEach(p=>{if(p.currentSlot>=0&&p.currentSlot<4&&!data.used[p.currentSlot])data.used[p.currentSlot]=true;else p.currentSlot=-1});
+  data.pieces.forEach(p=>{if(p.currentSlot<0){const avail=[0,1,2,3].filter(i=>!data.used[i]);p.currentSlot=avail.length?avail[Math.floor(Math.random()*avail.length)]:0;data.used[p.currentSlot]=true}});
+  const selectable=data.pieces.filter(p=>$(`piece-${p.id}`)?.classList.contains('selectable'));
+  const spreadOffsets=getSelectionSpreadOffsets(selectable.length,cellW,cellH);
+  data.pieces.forEach(p=>{const e=$(`piece-${p.id}`);if(!e)return;e.classList.toggle('ghost',p.isGhost);const size=e.offsetWidth,startY=cellH*.16,slotH=Math.max(0,(cellH-startY-size)/3);let x=cellLeft+(cellW-size)/2,y=cellTop+startY+p.currentSlot*slotH;
+    const si=selectable.indexOf(p);if(si!==-1&&selectable.length>1){const o=spreadOffsets[si];x=cellLeft+o.x-size/2;y=cellTop+o.y-size/2}
+    e.style.transform=`translate3d(${x}px,${y}px,0)`;
   });
+ }
 }
-function setPlayerChoices(handler){
-  players.forEach(p=>{
-    const el=$(`p-info-${p.id}`);el.disabled=false;el.classList.add('selectable');if(selectedTargets.includes(p.id))el.classList.add('selected');el.onclick=()=>handler(p.id);
-  });
-}
-
-function rollDice(){
-  if(phase!=='ready'||animationLock)return;
-  animationLock=true;setDiceReady(false);clearInteractives();hideActions();
-  let count=0;const faces=[1,2,3,4,'g'];
-  const timer=setInterval(()=>{
-    const face=faces[Math.floor(Math.random()*faces.length)];setDiceFace(face);count++;
-    if(count>=10){clearInterval(timer);const finalFaces=[1,2,3,4,'g','g'];const result=finalFaces[Math.floor(Math.random()*finalFaces.length)];setDiceFace(result);animationLock=false;result==='g'?handleGhostRoll():handleNumberRoll(result)}
-  },60);
-}
-function setDiceFace(face){const dice=$('dice');const num=dice.querySelector('.dice-num');dice.dataset.face=String(face);if(face==='g'){num.textContent='';}else{num.textContent=String(face);} }
-
-function handleNumberRoll(num){
-  const own=pieces.find(p=>p.id===turnIndex);
-  if(!own.isGhost){updateMessage(`${players[turnIndex].name} が ${num} マス進みます。`);movePiece(own,num);return}
-  pendingNumber=num;phase='chooseGhostMove';selectedTargets=[];restorePhaseInteraction();
-}
-function finishGhostMove(id){const target=pieces.find(p=>p.id===id);movePiece(target,pendingNumber);pendingNumber=null}
-function movePiece(piece,num){
-  clearInteractives();piece.currentSlot=-1;piece.pos=Math.min(piece.pos+num,GOAL_POS);phase='resolving';renderPieces();saveState();
-  if(piece.pos===GOAL_POS)setTimeout(triggerGameOver,ANIMATION_TIME);else setTimeout(nextTurn,ANIMATION_TIME);
-}
-
-function handleGhostRoll(){
-  const visible=pieces.filter(p=>!p.isGhost);
-  if(visible.length){phase='chooseGhostify';selectedTargets=[];restorePhaseInteraction();return}
-  if(isColorSwapEnabled){phase='chooseSwapMode';selectedTargets=[];restorePhaseInteraction()}else startSwap('piece');
-}
-function finishGhostify(id){
-  const p=pieces.find(x=>x.id===id);p.isGhost=true;phase='resolving';const el=$(`piece-${id}`);el.classList.add('ghost');clearInteractives();
-  const r=el.getBoundingClientRect();spawnParticles(r.left+r.width/2,r.top+r.height/2,'ghost-fx');updateMessage('ゴースト化しました。');saveState();setTimeout(nextTurn,900);
-}
-
-function startSwap(mode){
-  $('cancel-action-btn').style.display='inline-block';selectedTargets=[];phase=mode==='piece'?'swapPiece':'swapColor';restorePhaseInteraction();
-}
-function selectSwapTarget(id,mode){
-  if(selectedTargets.includes(id)){selectedTargets=selectedTargets.filter(x=>x!==id);restorePhaseInteraction();return}
-  selectedTargets.push(id);
-  if(selectedTargets.length<2){restorePhaseInteraction();return}
-  executeSwap(mode);
-}
-function executeSwap(mode){
-  const [a,b]=selectedTargets;clearInteractives();hideActions();
-  if(mode==='piece'){
-    const p1=pieces.find(p=>p.id===a),p2=pieces.find(p=>p.id===b);[p1.pos,p2.pos]=[p2.pos,p1.pos];[p1.currentSlot,p2.currentSlot]=[p2.currentSlot,p1.currentSlot];renderPieces();updateMessage('ゴーストの位置が入れ替わりました。');
-  }else{
-    const p1=players.find(p=>p.id===a),p2=players.find(p=>p.id===b);[p1.colorId,p2.colorId]=[p2.colorId,p1.colorId];
-    $('tile-'+a).className=`color-chip c${p1.colorId}`;$('tile-'+b).className=`color-chip c${p2.colorId}`;updateMessage('プレイヤーの色が入れ替わりました。');
-  }
-  selectedTargets=[];phase='resolving';saveState();setTimeout(nextTurn,ANIMATION_TIME);
-}
-
-function nextTurn(){
-  do{turnIndex=(turnIndex+1)%players.length}while(!players[turnIndex].isHuman);
-  phase='ready';selectedTargets=[];pendingNumber=null;animationLock=false;restorePhaseInteraction();
-}
-
-function triggerGameOver(){
-  phase='gameover';clearSave();setDiceReady(false);clearInteractives();hideActions();pieces.forEach(p=>p.isGhost=false);renderPieces();
-  const goal=pieces.find(p=>p.pos===GOAL_POS);const owner=goal?players.find(p=>p.colorId===goal.id):null;
-  updateMessage(owner?`${owner.name} のコマがGOAL！ 正体を公開します。`:'GOAL！ 正体を公開します。');
-  spawnParticles(innerWidth/2,innerHeight/2,'goal-fx');setTimeout(showResult,650);
-}
-function showResult(){
-  const ranking=[...pieces].sort((a,b)=>b.pos-a.pos);const list=$('ranking-list');list.innerHTML='';
-  ranking.forEach((piece,index)=>{
-    const owner=players.find(p=>p.colorId===piece.id);const row=document.createElement('div');row.className='rank-row';
-    const r=document.createElement('div');r.className='rank'+(index===0?' winner':'');r.textContent=['1ST','2ND','3RD','4TH'][index]||`${index+1}TH`;
-    const chip=document.createElement('span');chip.className=`color-chip c${piece.id}`;
-    const name=document.createElement('div');name.textContent=owner?owner.name:'?';
-    const pos=document.createElement('div');pos.className='pos';pos.textContent=piece.pos===GOAL_POS?'GOAL':`${piece.pos}マス`;
-    row.append(r,chip,name,pos);list.appendChild(row);
-  });
-  $('result-overlay').style.display='flex';$('rematch-btn').focus();
-}
-
-function renderPieces(){
-  if(!pieces.length)return;const occupancy={};for(let i=0;i<TOTAL_CELLS;i++)occupancy[i]={pieces:[],used:[false,false,false,false]};
-  pieces.forEach(p=>occupancy[p.pos].pieces.push(p));const boardRect=$('board').getBoundingClientRect();
-  Object.keys(occupancy).forEach(id=>{
-    const data=occupancy[id];if(!data.pieces.length)return;const cell=$(`cell-${id}`);if(!cell)return;const rect=cell.getBoundingClientRect();
-    data.pieces.forEach(p=>{if(p.currentSlot>=0&&p.currentSlot<4&&!data.used[p.currentSlot])data.used[p.currentSlot]=true;else p.currentSlot=-1});
-    data.pieces.forEach(p=>{
-      if(p.currentSlot<0){const avail=[0,1,2,3].filter(i=>!data.used[i]);p.currentSlot=avail.length?avail[Math.floor(Math.random()*avail.length)]:0;data.used[p.currentSlot]=true}
-      const el=$(`piece-${p.id}`);if(!el)return;el.classList.toggle('ghost',p.isGhost);el.setAttribute('aria-label',p.isGhost?'ゴースト':'コマ');
-      const size=el.offsetWidth;const cellLeft=rect.left-boardRect.left;const cellTop=cell.offsetTop;const startY=rect.height*.16;const slotH=Math.max(0,(rect.height-startY-size)/3);
-      const x=cellLeft+(rect.width-size)/2;const y=cellTop+startY+p.currentSlot*slotH;el.style.transform=`translate3d(${x}px, ${y}px, 0)`;
-    });
-  });
-}
-
-function spawnParticles(x,y,type){
-  const count=type==='goal-fx'?24:8;const colors=['#fff','#ff3333','#3333ff','#33cc33','#ffff33'];
-  for(let i=0;i<count;i++){
-    const p=document.createElement('div');p.className=`particle ${type}`;p.style.left=x+'px';p.style.top=y+'px';if(type==='goal-fx')p.style.backgroundColor=colors[Math.floor(Math.random()*colors.length)];
-    const a=Math.random()*Math.PI*2,s=type==='goal-fx'?Math.random()*140+40:Math.random()*50+20;p.style.setProperty('--tx',Math.cos(a)*s+'px');p.style.setProperty('--ty',(Math.sin(a)*s-(type==='ghost-fx'?35:0))+'px');document.body.appendChild(p);setTimeout(()=>p.remove(),1000);
-  }
-}
-</script>
-</body>
-</html>
+function getSelectionSpreadOffsets(count,w,h){const pad=Math.max(6,Math.min(w,h)*.10),top=Math.max(pad,h*.24),bottom=h-pad,left=pad,right=w-pad,cx=w/2,cy=Math.min(h*.62,(top+bottom)/2);if(count<=1)return[{x:cx,y:cy}];if(count===2)return[{x:left+Math.max(12,w*.12),y:cy},{x:right-Math.max(12,w*.12),y:cy}];if(count===3)return[{x:left+Math.max(12,w*.12),y:top},{x:right-Math.max(12,w*.12),y:top},{x:cx,y:bottom-Math.max(12,h*.10)}];return[{x:left+Math.max(12,w*.12),y:top},{x:right-Math.max(12,w*.12),y:top},{x:left+Math.max(12,w*.12),y:bottom-Math.max(12,h*.10)},{x:right-Math.max(12,w*.12),y:bottom-Math.max(12,h*.10)}]}
+function spawnParticles(x,y,type){const count=type==='goal-fx'?20:7,colors=['#fff','#f33','#33f','#3c3','#ff3'];for(let i=0;i<count;i++){const p=document.createElement('div');p.className=`particle ${type}`;p.style.left=x+'px';p.style.top=y+'px';if(type==='goal-fx')p.style.backgroundColor=colors[Math.floor(Math.random()*colors.length)];const a=Math.random()*Math.PI*2,s=type==='goal-fx'?Math.random()*120+35:Math.random()*45+18;p.style.setProperty('--tx',Math.cos(a)*s+'px');p.style.setProperty('--ty',(Math.sin(a)*s-(type==='ghost-fx'?30:0))+'px');document.body.appendChild(p);setTimeout(()=>p.remove(),750)}}
+</script></body></html>
